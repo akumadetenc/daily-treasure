@@ -517,7 +517,7 @@ export default function Home() {
           <div className="rounded-2xl border border-[#EEE7E1] bg-white px-4 py-10 text-center text-sm text-[#929292]">読み込み中…</div>
         ) : view === "calendar" && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-40 -mx-3 mb-2 border-b border-[#EEE7E1] bg-[#FFFAF6]/95 px-3 pb-2 pt-[max(env(safe-area-inset-top),8px)] backdrop-blur sm:-mx-6 sm:px-6">
+            <div className="sticky top-0 z-40 -mx-3 mb-2 border-b border-[#EEE7E1] bg-[#FFFAF6] px-3 pb-2 pt-[max(env(safe-area-inset-top),8px)] sm:-mx-6 sm:px-6">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0"><p className="text-[11px] text-[#929292]">選択した日</p><p className="truncate text-sm font-semibold text-[#55585A]">{formatDate(selectedDate)}</p></div>
                 <div className="flex shrink-0 gap-2">
@@ -597,7 +597,7 @@ export default function Home() {
 
         {today && selectedDate && view === "daily" && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-20 -mx-3 rounded-b-xl border-b border-[#EEE7E1] bg-[#FFFAF6]/95 px-4 py-3 backdrop-blur sm:-mx-6">
+            <div className="sticky top-0 z-20 -mx-3 rounded-b-xl border-b border-[#EEE7E1] bg-[#FFFAF6] px-4 py-3 sm:-mx-6">
               <span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span>
             </div>
             <section className={sectionClass}>
@@ -650,7 +650,7 @@ export default function Home() {
 
         {today && selectedDate && view === "treasures" && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-20 -mx-3 rounded-b-xl border-b border-[#EEE7E1] bg-[#FFFAF6]/95 px-4 py-3 backdrop-blur sm:-mx-6">
+            <div className="sticky top-0 z-20 -mx-3 rounded-b-xl border-b border-[#EEE7E1] bg-[#FFFAF6] px-4 py-3 sm:-mx-6">
               <span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span>
             </div>
             <section className={sectionClass}>
@@ -680,7 +680,7 @@ export default function Home() {
 
         {today && selectedDate && view === "treasure-list" && (
           <div className="space-y-3">
-            <section className="sticky top-0 z-40 rounded-2xl border border-[#EEE7E1] bg-[#FFFAF6] p-3 shadow-[0_2px_4px_rgba(80,60,40,0.04)]">
+            <section className="sticky top-0 z-40 rounded-2xl border border-[#EEE7E1] bg-[#FFFAF6] p-3 shadow-none">
                 <div className="mb-3 flex items-center justify-between gap-2"><button onClick={() => setView("settings")} className="text-xs text-[#D9874F]">カテゴリ設定</button><span className="text-xs text-[#999999]">{treasures.filter((item) => listCategory === "すべて" || (item.category || "その他") === listCategory).length}件</span></div>
                 <input type="search" value={treasureSearch} onChange={(event) => setTreasureSearch(event.target.value)} placeholder="タイトル・URL・メモを検索" className={`${inputClass} mb-3`} />
                 <div className="flex gap-2 overflow-x-auto pb-1">{["すべて", ...treasureCategories].map((category) => <button key={category} onClick={() => setListCategory(category)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium ${listCategory === category ? "border-[#8EAAB3] bg-[#DCE8EC] text-[#64838D]" : "border-[#EEE7E1] bg-white text-[#888D90]"}`}>{category}</button>)}</div>
@@ -759,7 +759,7 @@ export default function Home() {
           </div>
         )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E8E8E8] bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E8E8E8] bg-white px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5">
         <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
           <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "graphs" ? "bg-[#E8E8E8]" : "bg-transparent"}`}><img src="/icons/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>
           <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "calendar" ? "bg-[#E8E8E8]" : "bg-transparent"}`}><img src="/icons/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>

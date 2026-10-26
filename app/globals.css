@@ -12,13 +12,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: #FFFAF6;
   color: var(--foreground);
@@ -27,3 +20,6 @@ body {
 
 html, body { min-height: 100%; background: #FFFAF6; }
 body { overscroll-behavior-y: none; }
+
+html { background: #FFFAF6; color-scheme: light; }
+body { background: #FFFAF6; }
