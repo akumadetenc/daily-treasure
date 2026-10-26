@@ -12,6 +12,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
+
+
 body {
   background: #FFFAF6;
   color: var(--foreground);
@@ -20,6 +22,3 @@ body {
 
 html, body { min-height: 100%; background: #FFFAF6; }
 body { overscroll-behavior-y: none; }
-
-html { background: #FFFAF6; color-scheme: light; }
-body { background: #FFFAF6; }
