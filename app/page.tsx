@@ -760,7 +760,6 @@ export default function Home() {
           </div>
         )}
       </div>
-      </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E8E8E8] bg-white px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5">
         <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
