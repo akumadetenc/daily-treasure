@@ -512,13 +512,10 @@ export default function Home() {
 
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
-      <div className="h-full overflow-y-auto overscroll-y-none px-3 pb-24 pt-[max(env(safe-area-inset-top),8px)] [-webkit-overflow-scrolling:auto] sm:px-6 sm:pb-24 sm:pt-8">
-      <div className="mx-auto max-w-2xl">
-        {!today || !selectedDate || !monthDate ? (
-          <div className="rounded-2xl border border-[#EEE7E1] bg-white px-4 py-10 text-center text-sm text-[#929292]">読み込み中…</div>
-        ) : view === "calendar" && (
-          <div className="space-y-3">
-            <div className="sticky top-0 z-40 -mx-3 mb-2 border-b border-[#EEE7E1] bg-[#FFFAF6] px-3 pb-2 pt-2 sm:-mx-6 sm:px-6">
+      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures") && (
+        <header className="fixed inset-x-0 top-0 z-40 border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[max(env(safe-area-inset-top),8px)] shadow-none">
+          <div className="mx-auto max-w-2xl px-3 pb-2 pt-2 sm:px-6">
+            {view === "calendar" ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0"><p className="text-[11px] text-[#929292]">選択した日</p><p className="truncate text-sm font-semibold text-[#55585A]">{formatDate(selectedDate)}</p></div>
                 <div className="flex shrink-0 gap-2">
@@ -526,7 +523,21 @@ export default function Home() {
                   <button onClick={() => setView("treasures")} className="rounded-lg border border-[#D5E2E6] bg-[#EAF1F3] px-3 py-2 text-xs font-semibold text-[#64838D]">宝物を追加</button>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="py-1"><span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span></div>
+            )}
+          </div>
+        </header>
+      )}
+      <div
+        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
+        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures") ? "calc(max(env(safe-area-inset-top), 8px) + 58px)" : "0px" }}
+      >
+      <div className="mx-auto max-w-2xl">
+        {!today || !selectedDate || !monthDate ? (
+          <div className="rounded-2xl border border-[#EEE7E1] bg-white px-4 py-10 text-center text-sm text-[#929292]">読み込み中…</div>
+        ) : view === "calendar" && (
+          <div className="space-y-3">
             <section className={sectionClass}>
               <div className="mb-4 flex items-center justify-between">
                 <button aria-label="前の月" onClick={() => changeMonth(-1)} className="flex h-10 w-10 items-center justify-center rounded-full border border-[#EEE7E1] bg-[#FFFAF6] text-xl text-[#E18D55]">‹</button>
@@ -598,9 +609,6 @@ export default function Home() {
 
         {today && selectedDate && view === "daily" && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-20 -mx-3 rounded-b-xl border-b border-[#EEE7E1] bg-[#FFFAF6] px-4 py-3 sm:-mx-6">
-              <span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span>
-            </div>
             <section className={sectionClass}>
               <h2 className={sectionTitleClass}>気分</h2>
               <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
@@ -651,9 +659,6 @@ export default function Home() {
 
         {today && selectedDate && view === "treasures" && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-20 -mx-3 rounded-b-xl border-b border-[#EEE7E1] bg-[#FFFAF6] px-4 py-3 sm:-mx-6">
-              <span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span>
-            </div>
             <section className={sectionClass}>
               <div className="space-y-3">
                 {editingTreasureId && <label className="block text-sm text-[#777B7E]">作成日<input type="date" value={treasureDate || selectedDate} onChange={(event) => setTreasureDate(event.target.value)} className={`${inputClass} mt-1`} /></label>}
