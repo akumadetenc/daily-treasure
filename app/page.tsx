@@ -512,7 +512,7 @@ export default function Home() {
 
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
-      <div className="h-full overflow-y-auto overscroll-y-contain px-3 pb-24 pt-[max(env(safe-area-inset-top),8px)] [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 sm:pt-8">
+      <div className="h-full overflow-y-auto overscroll-y-none px-3 pb-24 pt-[max(env(safe-area-inset-top),8px)] [-webkit-overflow-scrolling:auto] sm:px-6 sm:pb-24 sm:pt-8">
       <div className="mx-auto max-w-2xl">
         {!today || !selectedDate || !monthDate ? (
           <div className="rounded-2xl border border-[#EEE7E1] bg-white px-4 py-10 text-center text-sm text-[#929292]">読み込み中…</div>
