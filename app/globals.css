@@ -20,3 +20,34 @@ body {
 
 html, body { min-height: 100%; background: #FFFAF6; }
 body { overscroll-behavior-y: none; }
+
+
+/* iPhone Safari: sticky header areas stay opaque and never blur scrolling content. */
+html, body {
+  background-color: #FFFAF6 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Disable inherited/translucent blur on sticky top bars across every view. */
+main [class*="sticky"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-color: #FFFAF6 !important;
+  background-image: none !important;
+  opacity: 1;
+}
+
+/* Keep the top calendar action bar below the iPhone status area with a solid surface. */
+main > div > div > div.sticky {
+  top: 0 !important;
+  padding-top: max(env(safe-area-inset-top), 8px);
+  isolation: isolate;
+}
+
+/* Bottom navigation is solid white, without blur or a grey active tile. */
+main nav {
+  background-color: #fff !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}

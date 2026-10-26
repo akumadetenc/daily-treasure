@@ -517,7 +517,7 @@ export default function Home() {
           <div className="rounded-2xl border border-[#EEE7E1] bg-white px-4 py-10 text-center text-sm text-[#929292]">読み込み中…</div>
         ) : view === "calendar" && (
           <div className="space-y-3">
-            <div className="sticky top-0 z-40 -mx-3 mb-2 border-b border-[#EEE7E1] bg-[#FFFAF6] px-3 pb-2 pt-[max(env(safe-area-inset-top),8px)] sm:-mx-6 sm:px-6">
+            <div className="sticky top-0 z-40 -mx-3 mb-2 border-b border-[#EEE7E1] bg-[#FFFAF6] px-3 pb-2 pt-2 sm:-mx-6 sm:px-6">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0"><p className="text-[11px] text-[#929292]">選択した日</p><p className="truncate text-sm font-semibold text-[#55585A]">{formatDate(selectedDate)}</p></div>
                 <div className="flex shrink-0 gap-2">
@@ -761,11 +761,11 @@ export default function Home() {
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E8E8E8] bg-white px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5">
         <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
-          <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "graphs" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>
-          <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "calendar" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>
-          <button aria-label="日常記録" title="日常記録" onClick={() => setView("daily")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "daily" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>
-          <button aria-label="宝物記録" title="宝物記録" onClick={() => setView("treasures")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasures" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasures" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>
-          <button aria-label="宝物一覧" title="宝物一覧" onClick={() => setView("treasure-list")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasure-list" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-list.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasure-list" ? "opacity-100" : "opacity-45 grayscale"}`} /></button>
+          <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "graphs" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "calendar" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="日常記録" title="日常記録" onClick={() => setView("daily")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "daily" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="宝物記録" title="宝物記録" onClick={() => setView("treasures")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasures" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasures" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="宝物一覧" title="宝物一覧" onClick={() => setView("treasure-list")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasure-list" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-list.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasure-list" ? "opacity-100" : "opacity-40"}`} /></button>
         </div>
       </nav>
 
