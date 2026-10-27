@@ -8,6 +8,10 @@ type DailyRecord = {
   mood: string;
   activity: string;
   condition: string;
+  breakfast: string;
+  lunch: string;
+  dinner: string;
+  snack: string;
   expenses: Expense[];
   memo: string;
   updatedAt?: string;
@@ -91,6 +95,10 @@ export default function Home() {
   const [mood, setMood] = useState("");
   const [activity, setActivity] = useState("");
   const [condition, setCondition] = useState("");
+  const [breakfast, setBreakfast] = useState("");
+  const [lunch, setLunch] = useState("");
+  const [dinner, setDinner] = useState("");
+  const [snack, setSnack] = useState("");
   const [expenses, setExpenses] = useState<Expense[]>([{ id: makeId(), category: "食費", amount: "", detail: "" }]);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_EXPENSE_COLORS);
@@ -329,6 +337,10 @@ export default function Home() {
     setMood(record?.mood ?? "");
     setActivity(record?.activity ?? "");
     setCondition(record?.condition ?? "");
+    setBreakfast(record?.breakfast ?? "");
+    setLunch(record?.lunch ?? "");
+    setDinner(record?.dinner ?? "");
+    setSnack(record?.snack ?? "");
     setExpenses(record?.expenses?.length ? record.expenses : [{ id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
     setMemo(record?.memo ?? "");
     setSavedMessage("");
@@ -353,7 +365,7 @@ export default function Home() {
     setMonthDate(new Date(monthYear, month + delta, 1));
   }
   function saveDailyRecord() {
-    const next = { ...records, [selectedDate]: { mood, activity, condition, expenses, memo, updatedAt: new Date().toISOString() } };
+    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, updatedAt: new Date().toISOString() } };
     setRecords(next);
     localStorage.setItem(RECORDS_KEY, JSON.stringify(next));
     localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
@@ -508,7 +520,7 @@ export default function Home() {
   }, 0);
   const hasDailyRecord = (date: string) => {
     const record = records[date];
-    return !!record && (!!record.mood || !!record.activity || !!record.condition || !!record.memo?.trim() || record.expenses?.some((e) => !!e.amount || !!e.detail.trim()));
+    return !!record && (!!record.mood || !!record.activity || !!record.condition || !!record.breakfast?.trim() || !!record.lunch?.trim() || !!record.dinner?.trim() || !!record.snack?.trim() || !!record.memo?.trim() || record.expenses?.some((e) => !!e.amount || !!e.detail.trim()));
   };
 
   return (
@@ -603,7 +615,8 @@ export default function Home() {
                     {records[selectedDate]?.activity && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"労働":"/icons/work.svg","外出":"/icons/outing.svg","イベント":"/icons/event.svg","まったり":"/icons/relax.svg"} as Record<string,string>)[records[selectedDate].activity]} alt={records[selectedDate].activity} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">過ごし方</span></div>}
                     {records[selectedDate]?.condition && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"◎":"/icons/condition-best.svg","〇":"/icons/condition-good.svg","△":"/icons/condition-mid.svg","×":"/icons/condition-bad.svg"} as Record<string,string>)[records[selectedDate].condition]} alt={records[selectedDate].condition} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">体調</span></div>}
                   </div>}
-                  {!!records[selectedDate]?.expenses?.some((e) => e.amount || e.detail) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFF5EC] p-3"><p className="mb-2 flex items-center gap-2 text-sm text-[#D9874F]"><span>支出</span><span className="font-semibold">{selectedDayExpenseTotal.toLocaleString("ja-JP")}円</span></p><div className="space-y-1">{records[selectedDate].expenses.filter((e) => e.amount || e.detail).map((e) => <p key={e.id} className="py-0.5 text-sm text-[#C4BCB6]">{e.category}　{e.amount ? `${Number(e.amount).toLocaleString("ja-JP")}円` : ""}　<span className="text-[#D8D2CD]">{e.detail}</span></p>)}</div></div>}
+                  {(records[selectedDate]?.breakfast?.trim() || records[selectedDate]?.lunch?.trim() || records[selectedDate]?.dinner?.trim() || records[selectedDate]?.snack?.trim()) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 text-sm font-semibold text-[#D9874F]">ごはん</p><div className="space-y-2 text-sm">{([ ["朝", records[selectedDate]?.breakfast], ["昼", records[selectedDate]?.lunch], ["夜", records[selectedDate]?.dinner], ["おやつ", records[selectedDate]?.snack] ] as [string, string | undefined][]).filter(([, value]) => value?.trim()).map(([label, value]) => <p key={label} className="whitespace-pre-wrap"><span className="mr-2 inline-block min-w-10 text-[#999999]">{label}</span><span>{value}</span></p>)}</div></div>}
+                  {!!records[selectedDate]?.expenses?.some((e) => e.amount || e.detail) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#D9874F]"><span>支出</span><span>{selectedDayExpenseTotal.toLocaleString("ja-JP")}円</span></p><div className="space-y-1">{records[selectedDate].expenses.filter((e) => e.amount || e.detail).map((e) => <p key={e.id} className="py-0.5 text-sm text-[#C4BCB6]">{e.category}　{e.amount ? `${Number(e.amount).toLocaleString("ja-JP")}円` : ""}　<span className="text-[#D8D2CD]">{e.detail}</span></p>)}</div></div>}
                   {records[selectedDate]?.memo && <p className="whitespace-pre-wrap leading-6">{records[selectedDate].memo}</p>}
                 </div>
               ) : <p className="text-sm text-[#999999]">この日の記録はまだありません。</p>}
@@ -660,6 +673,15 @@ export default function Home() {
                   const conditionIcons: Record<string, string> = { "◎": "/icons/condition-best.svg", "〇": "/icons/condition-good.svg", "△": "/icons/condition-mid.svg", "×": "/icons/condition-bad.svg" };
                   return <button key={option} type="button" aria-label={`体調 ${option}`} onClick={() => setCondition(condition === option ? "" : option)} className={`flex items-center justify-center rounded-xl border p-2 transition ${condition === option ? "border-[#E9A16F] bg-[#FBE9DB] ring-2 ring-[#F4D2B8]" : "border-[#EEE7E1] bg-[#FFFCF9] hover:bg-[#FFF3EA]"}`}><img src={conditionIcons[option]} alt={option} className="h-9 w-9 object-contain" /></button>;
                 })}
+              </div>
+            </section>
+            <section className={sectionClass}>
+              <h2 className={sectionTitleClass}>ごはん</h2>
+              <div className="space-y-2">
+                <input aria-label="朝ごはん" value={breakfast} onChange={(event) => setBreakfast(event.target.value)} placeholder="朝ごはん" className={inputClass} />
+                <input aria-label="昼ごはん" value={lunch} onChange={(event) => setLunch(event.target.value)} placeholder="昼ごはん" className={inputClass} />
+                <input aria-label="夜ごはん" value={dinner} onChange={(event) => setDinner(event.target.value)} placeholder="夜ごはん" className={inputClass} />
+                <input aria-label="おやつ" value={snack} onChange={(event) => setSnack(event.target.value)} placeholder="おやつ" className={inputClass} />
               </div>
             </section>
             <section className={sectionClass}>
