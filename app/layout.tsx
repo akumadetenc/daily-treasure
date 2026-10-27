@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "日常宝箱",
-  description: "日常の記録と宝物を保存するアプリ",
+  title: "＠たからもの",
+  description: "日々の記録と大切な宝物を保存するアプリ",
 };
 
 export const viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" as const, themeColor: "#FFFAF6" };

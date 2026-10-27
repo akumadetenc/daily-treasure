@@ -512,8 +512,8 @@ export default function Home() {
 
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
-      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures") && (
-        <header className="fixed inset-x-0 top-0 z-40 border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[max(env(safe-area-inset-top),8px)] shadow-none">
+      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") && (
+        <header className="fixed inset-x-0 top-0 z-40 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[max(env(safe-area-inset-top),8px)] shadow-none [backdrop-filter:none] [transform:translateZ(0)]">
           <div className="mx-auto max-w-2xl px-3 pb-2 pt-2 sm:px-6">
             {view === "calendar" ? (
               <div className="flex items-center justify-between gap-2">
@@ -523,6 +523,11 @@ export default function Home() {
                   <button onClick={() => setView("treasures")} className="rounded-lg border border-[#D5E2E6] bg-[#EAF1F3] px-3 py-2 text-xs font-semibold text-[#64838D]">宝物を追加</button>
                 </div>
               </div>
+            ) : view === "graphs" ? (
+              <div className="flex items-center justify-between py-1">
+                <span className="text-base font-semibold text-[#55585A]">グラフ</span>
+                <span className="text-xs text-[#929292]">{getMonthLabel(graphMonth.getFullYear(), graphMonth.getMonth())}</span>
+              </div>
             ) : (
               <div className="py-1"><span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span></div>
             )}
@@ -530,8 +535,8 @@ export default function Home() {
         </header>
       )}
       <div
-        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
-        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures") ? "calc(max(env(safe-area-inset-top), 8px) + 58px)" : "0px" }}
+        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
+        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") ? "calc(max(env(safe-area-inset-top), 8px) + 58px)" : "0px" }}
       >
       <div className="mx-auto max-w-2xl">
         {!today || !selectedDate || !monthDate ? (
@@ -610,6 +615,11 @@ export default function Home() {
         {today && selectedDate && view === "daily" && (
           <div className="space-y-3">
             <section className={sectionClass}>
+              <label htmlFor="daily-record-date" className="mb-2 block text-sm font-semibold text-[#55585A]">記録する日付</label>
+              <input id="daily-record-date" aria-label="記録する日付" type="date" value={selectedDate} max={today} onChange={(event) => { if (event.target.value) setSelectedDate(event.target.value); }} className={inputClass} />
+              <p className="mt-2 text-xs text-[#929292]">日付を選ぶと、その日の記録を作成・編集できます。</p>
+            </section>
+            <section className={sectionClass}>
               <h2 className={sectionTitleClass}>気分</h2>
               <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                 {MOODS.map((option, index) => <button key={option} type="button" onClick={() => setMood(mood === option ? "" : option)} aria-pressed={mood === option} className={`flex min-w-0 flex-col items-center justify-center rounded-xl border p-1.5 transition sm:p-2 ${mood === option ? "border-[#E9A16F] bg-[#FBE9DB] ring-2 ring-[#F4D2B8]" : "border-[#EEE7E1] bg-[#FFFCF9] hover:bg-[#FFF3EA]"}`}><img src={CAT_IMAGES[index]} alt={option} className="h-12 w-12 object-contain sm:h-14 sm:w-14" /></button>)}
@@ -646,7 +656,7 @@ export default function Home() {
                 </div>)}
               </div>
               <button type="button" onClick={addExpense} className="mt-3 w-full rounded-xl border border-dashed border-[#E9B995] bg-[#FFFCF9] py-3 text-sm font-medium text-[#D9874F]">＋ 支出を追加</button>
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-[#FBE9DB] px-4 py-3"><span className="text-sm font-medium text-[#777B7E]">今日の合計</span><span className="text-xl font-bold tabular-nums text-[#D9874F]">{totalExpense.toLocaleString("ja-JP")}<span className="ml-1 text-sm font-medium">円</span></span></div>
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-[#FBE9DB] px-4 py-3"><span className="text-sm font-medium text-[#777B7E]">合計</span><span className="text-xl font-bold tabular-nums text-[#D9874F]">{totalExpense.toLocaleString("ja-JP")}<span className="ml-1 text-sm font-medium">円</span></span></div>
             </section>
             <section className={sectionClass}>
               <h2 className={sectionTitleClass}>今日のメモ</h2>
@@ -718,7 +728,7 @@ export default function Home() {
 
         {today && view === "graphs" && (
           <div className="space-y-3">
-            <section className={`${sectionClass} sticky top-0 z-20`}>
+            <section className={sectionClass}>
               <div className="mb-4 flex items-center justify-between gap-2">
                 <button type="button" aria-label="前の月" onClick={() => setMonthDate(new Date(graphMonth.getFullYear(), graphMonth.getMonth() - 1, 1))} className="rounded-xl border border-[#EEE7E1] px-3 py-2 text-[#777B7E]">‹</button>
                 <h2 className="text-base font-semibold text-[#55585A]">{getMonthLabel(graphMonth.getFullYear(), graphMonth.getMonth())}</h2>
