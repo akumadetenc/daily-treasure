@@ -110,8 +110,25 @@ export async function POST(request: Request) {
 
     const videoId = youtubeVideoId(url);
     if (videoId && /^[\w-]{6,20}$/.test(videoId)) {
+      let title = "";
+      try {
+        const oembedUrl = new URL("https://www.youtube.com/oembed");
+        oembedUrl.searchParams.set("url", url.toString());
+        oembedUrl.searchParams.set("format", "json");
+        const oembedResponse = await fetch(oembedUrl.toString(), {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; AtakaramonoLinkPreview/1.0)" },
+          signal: AbortSignal.timeout(5000),
+          cache: "no-store",
+        });
+        if (oembedResponse.ok) {
+          const oembed = await oembedResponse.json();
+          if (typeof oembed?.title === "string") title = decodeEntities(oembed.title).trim();
+        }
+      } catch {
+        // oEmbedが利用できない場合でも、動画サムネイルは表示する。
+      }
       return NextResponse.json({
-        title: "",
+        title: title.slice(0, 300),
         siteName: "YouTube",
         thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       });

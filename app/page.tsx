@@ -402,7 +402,7 @@ export default function Home() {
     const editingItem = editingTreasureId ? treasures.find((item) => item.id === editingTreasureId) : undefined;
     const item: Treasure = {
       id: editingItem?.id || makeId(),
-      date: editingTreasureId ? (treasureDate || selectedDate) : selectedDate,
+      date: editingTreasureId ? (treasureDate || editingItem?.date || today) : today,
       url: safeUrl,
       title: treasureTitle.trim() || (safeUrl ? safeUrl.replace(/^https?:\/\//, "").split("/")[0] : "タイトルなし"),
       note: treasureNote.trim(),
@@ -513,7 +513,7 @@ export default function Home() {
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
       {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") && (
-        <header className="fixed inset-x-0 top-0 z-40 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[max(env(safe-area-inset-top),8px)] shadow-none [backdrop-filter:none] [transform:translateZ(0)]">
+        <header className={`fixed inset-x-0 top-0 z-50 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[env(safe-area-inset-top)] shadow-none opacity-100 [backdrop-filter:none] [-webkit-backdrop-filter:none] ${view === "graphs" ? "min-h-[calc(58px+env(safe-area-inset-top))]" : ""}`}>
           <div className="mx-auto max-w-2xl px-3 pb-2 pt-2 sm:px-6">
             {view === "calendar" ? (
               <div className="flex items-center justify-between gap-2">
@@ -616,8 +616,7 @@ export default function Home() {
           <div className="space-y-3">
             <section className={sectionClass}>
               <label htmlFor="daily-record-date" className="mb-2 block text-sm font-semibold text-[#55585A]">記録する日付</label>
-              <input id="daily-record-date" aria-label="記録する日付" type="date" value={selectedDate} max={today} onChange={(event) => { if (event.target.value) setSelectedDate(event.target.value); }} className={inputClass} />
-              <p className="mt-2 text-xs text-[#929292]">日付を選ぶと、その日の記録を作成・編集できます。</p>
+              <input id="daily-record-date" aria-label="記録する日付" type="date" value={selectedDate} max={today} onChange={(event) => { if (event.target.value) setSelectedDate(event.target.value); }} className={`${inputClass} box-border max-w-full appearance-none`} style={{ width: "100%" }} />
             </section>
             <section className={sectionClass}>
               <h2 className={sectionTitleClass}>気分</h2>
