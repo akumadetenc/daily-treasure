@@ -86,6 +86,7 @@ export default function Home() {
   const [treasureDate, setTreasureDate] = useState("");
   const [listCategory, setListCategory] = useState("すべて");
   const [treasureSearch, setTreasureSearch] = useState("");
+  const [treasureSearchOpen, setTreasureSearchOpen] = useState(false);
   const [newTreasureCategory, setNewTreasureCategory] = useState("");
   const [mood, setMood] = useState("");
   const [activity, setActivity] = useState("");
@@ -519,24 +520,31 @@ export default function Home() {
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0"><p className="text-[11px] text-[#929292]">選択した日</p><p className="truncate text-sm font-semibold text-[#55585A]">{formatDate(selectedDate)}</p></div>
                 <div className="flex shrink-0 gap-2">
-                  <button onClick={() => setView("daily")} className="rounded-lg bg-[#E9A16F] px-3 py-2 text-xs font-semibold text-white">日常記録</button>
-                  <button onClick={() => setView("treasures")} className="rounded-lg border border-[#D5E2E6] bg-[#EAF1F3] px-3 py-2 text-xs font-semibold text-[#64838D]">宝物を追加</button>
+                  <button onClick={() => { setSelectedDate(today); setView("daily"); }} className="rounded-lg bg-[#E9A16F] px-3 py-2 text-xs font-semibold text-white">日常記録</button>
+                  <button onClick={() => { setSelectedDate(today); setTreasureDate(today); setEditingTreasureId(null); setView("treasures"); }} className="rounded-lg border border-[#D5E2E6] bg-[#EAF1F3] px-3 py-2 text-xs font-semibold text-[#64838D]">宝物を追加</button>
                 </div>
               </div>
             ) : view === "graphs" ? (
-              <div className="flex items-center justify-between py-1">
-                <span className="text-base font-semibold text-[#55585A]">グラフ</span>
-                <span className="text-xs text-[#929292]">{getMonthLabel(graphMonth.getFullYear(), graphMonth.getMonth())}</span>
+              <div className="space-y-2 pb-1">
+                <div className="flex items-center justify-between gap-3">
+                  <button type="button" aria-label="前の月" onClick={() => setMonthDate(new Date(graphMonth.getFullYear(), graphMonth.getMonth() - 1, 1))} className="shrink-0 px-2 py-1 text-lg text-[#D9874F]">‹</button>
+                  <span className="text-base font-semibold text-[#55585A]">{getMonthLabel(graphMonth.getFullYear(), graphMonth.getMonth())}</span>
+                  <button type="button" aria-label="次の月" onClick={() => setMonthDate(new Date(graphMonth.getFullYear(), graphMonth.getMonth() + 1, 1))} className="shrink-0 px-2 py-1 text-lg text-[#D9874F]">›</button>
+                </div>
+                <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#F5F0EB] p-1">
+                  <button onClick={() => setGraphCategory("気分")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory !== "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>日常の記録</button>
+                  <button onClick={() => setGraphCategory("支出")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory === "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>支出</button>
+                </div>
               </div>
             ) : (
-              <div className="py-1"><span className="text-sm font-semibold text-[#777B7E]">{formatDate(selectedDate)}</span></div>
+              <div className="py-1"><span className="text-sm font-semibold text-[#777B7E]">{formatDate(today)}</span></div>
             )}
           </div>
         </header>
       )}
       <div
         className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
-        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") ? "calc(max(env(safe-area-inset-top), 8px) + 58px)" : "0px" }}
+        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") ? (view === "graphs" ? "calc(max(env(safe-area-inset-top), 8px) + 112px)" : "calc(max(env(safe-area-inset-top), 8px) + 58px)") : "0px" }}
       >
       <div className="mx-auto max-w-2xl">
         {!today || !selectedDate || !monthDate ? (
@@ -696,8 +704,14 @@ export default function Home() {
         {today && selectedDate && view === "treasure-list" && (
           <div className="space-y-3">
             <section className="sticky top-0 z-40 rounded-2xl border border-[#EEE7E1] bg-[#FFFAF6] p-3 shadow-[0_2px_4px_rgba(80,60,40,0.04)]">
-                <div className="mb-3 flex items-center justify-between gap-2"><button onClick={() => setView("settings")} className="text-xs text-[#D9874F]">カテゴリ設定</button><span className="text-xs text-[#999999]">{treasures.filter((item) => listCategory === "すべて" || (item.category || "その他") === listCategory).length}件</span></div>
-                <input type="search" value={treasureSearch} onChange={(event) => setTreasureSearch(event.target.value)} placeholder="タイトル・URL・メモを検索" className={`${inputClass} mb-3`} />
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <button onClick={() => setView("settings")} className="text-xs font-medium text-[#D9874F]">カテゴリ設定</button>
+                  <div className="flex items-center gap-2">
+                    <button type="button" aria-label="検索" onClick={() => { setTreasureSearchOpen((open) => !open); if (treasureSearchOpen) setTreasureSearch(""); }} className="rounded-full border border-[#EEE0D5] bg-white px-3 py-1.5 text-xs text-[#777B7E]">⌕ 検索</button>
+                    <span className="text-xs text-[#999999]">{treasures.filter((item) => listCategory === "すべて" || (item.category || "その他") === listCategory).length}件</span>
+                  </div>
+                </div>
+                {treasureSearchOpen && <input autoFocus type="search" value={treasureSearch} onChange={(event) => setTreasureSearch(event.target.value)} placeholder="タイトル・URL・メモ" className={`${inputClass} mb-2 !py-2.5`} />}
                 <div className="flex gap-2 overflow-x-auto pb-1">{["すべて", ...treasureCategories].map((category) => <button key={category} onClick={() => setListCategory(category)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium ${listCategory === category ? "border-[#8EAAB3] bg-[#DCE8EC] text-[#64838D]" : "border-[#EEE7E1] bg-white text-[#888D90]"}`}>{category}</button>)}</div>
             </section>
             <section className="space-y-3 rounded-2xl border border-[#EEE7E1] bg-white p-3 shadow-sm shadow-[#E8E0D8]/30">
@@ -728,16 +742,7 @@ export default function Home() {
         {today && view === "graphs" && (
           <div className="space-y-3">
             <section className={sectionClass}>
-              <div className="mb-4 flex items-center justify-between gap-2">
-                <button type="button" aria-label="前の月" onClick={() => setMonthDate(new Date(graphMonth.getFullYear(), graphMonth.getMonth() - 1, 1))} className="rounded-xl border border-[#EEE7E1] px-3 py-2 text-[#777B7E]">‹</button>
-                <h2 className="text-base font-semibold text-[#55585A]">{getMonthLabel(graphMonth.getFullYear(), graphMonth.getMonth())}</h2>
-                <button type="button" aria-label="次の月" onClick={() => setMonthDate(new Date(graphMonth.getFullYear(), graphMonth.getMonth() + 1, 1))} className="rounded-xl border border-[#EEE7E1] px-3 py-2 text-[#777B7E]">›</button>
-              </div>
               <p className="mb-3 text-xs text-[#929292]">日常記録 {monthRecordEntries.length}日分</p>
-              <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#F5F0EB] p-1">
-                <button onClick={() => setGraphCategory("気分")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory !== "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>日常の記録</button>
-                <button onClick={() => setGraphCategory("支出")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory === "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>支出</button>
-              </div>
             </section>
             <section className={sectionClass}>
               <h2 className={`${sectionTitleClass} mb-4`}>{graphCategory}</h2>
@@ -779,8 +784,8 @@ export default function Home() {
         <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
           <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "graphs" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-40"}`} /></button>
           <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "calendar" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="日常記録" title="日常記録" onClick={() => setView("daily")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "daily" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="宝物記録" title="宝物記録" onClick={() => setView("treasures")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasures" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasures" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="日常記録" title="日常記録" onClick={() => { setSelectedDate(today); setView("daily"); }} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "daily" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="宝物記録" title="宝物記録" onClick={() => { setSelectedDate(today); setTreasureDate(today); setEditingTreasureId(null); setView("treasures"); }} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasures" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasures" ? "opacity-100" : "opacity-40"}`} /></button>
           <button aria-label="宝物一覧" title="宝物一覧" onClick={() => setView("treasure-list")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasure-list" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-list.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasure-list" ? "opacity-100" : "opacity-40"}`} /></button>
         </div>
       </nav>
