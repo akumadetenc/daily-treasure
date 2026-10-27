@@ -513,7 +513,7 @@ export default function Home() {
 
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
-      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") && (
+      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list") && (
         <header className={`fixed inset-x-0 top-0 z-50 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[env(safe-area-inset-top)] shadow-none opacity-100 [backdrop-filter:none] [-webkit-backdrop-filter:none] ${view === "graphs" ? "min-h-[calc(58px+env(safe-area-inset-top))]" : ""}`}>
           <div className="mx-auto max-w-2xl px-3 pb-2 pt-2 sm:px-6">
             {view === "calendar" ? (
@@ -536,6 +536,18 @@ export default function Home() {
                   <button onClick={() => setGraphCategory("支出")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory === "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>支出</button>
                 </div>
               </div>
+            ) : view === "treasure-list" ? (
+              <div className="space-y-2 pb-1">
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => setView("settings")} className="text-xs font-medium text-[#D9874F]">カテゴリ設定</button>
+                  <div className="flex items-center gap-2">
+                    <button type="button" aria-label="検索" onClick={() => { setTreasureSearchOpen((open) => !open); if (treasureSearchOpen) setTreasureSearch(""); }} className="rounded-full border border-[#EEE0D5] bg-white px-3 py-1.5 text-xs text-[#777B7E]">⌕ 検索</button>
+                    <span className="text-xs text-[#999999]">{treasures.filter((item) => listCategory === "すべて" || (item.category || "その他") === listCategory).length}件</span>
+                  </div>
+                </div>
+                {treasureSearchOpen && <input autoFocus type="search" value={treasureSearch} onChange={(event) => setTreasureSearch(event.target.value)} placeholder="タイトル・URL・メモ" className={`${inputClass} !py-2`} />}
+                <div className="flex gap-2 overflow-x-auto pb-1">{["すべて", ...treasureCategories].map((category) => <button key={category} onClick={() => setListCategory(category)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium ${listCategory === category ? "border-[#8EAAB3] bg-[#DCE8EC] text-[#64838D]" : "border-[#EEE7E1] bg-white text-[#888D90]"}`}>{category}</button>)}</div>
+              </div>
             ) : (
               <div className="py-1"><span className="text-sm font-semibold text-[#777B7E]">{formatDate(today)}</span></div>
             )}
@@ -543,8 +555,8 @@ export default function Home() {
         </header>
       )}
       <div
-        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
-        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs") ? (view === "graphs" ? "calc(max(env(safe-area-inset-top), 8px) + 112px)" : "calc(max(env(safe-area-inset-top), 8px) + 58px)") : "0px" }}
+        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
+        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list") ? ((view === "graphs" || view === "treasure-list") ? "calc(max(env(safe-area-inset-top), 8px) + 112px)" : "calc(max(env(safe-area-inset-top), 8px) + 58px)") : "0px" }}
       >
       <div className="mx-auto max-w-2xl">
         {!today || !selectedDate || !monthDate ? (
@@ -703,17 +715,6 @@ export default function Home() {
 
         {today && selectedDate && view === "treasure-list" && (
           <div className="space-y-3">
-            <section className="sticky top-0 z-40 rounded-2xl border border-[#EEE7E1] bg-[#FFFAF6] p-3 shadow-[0_2px_4px_rgba(80,60,40,0.04)]">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <button onClick={() => setView("settings")} className="text-xs font-medium text-[#D9874F]">カテゴリ設定</button>
-                  <div className="flex items-center gap-2">
-                    <button type="button" aria-label="検索" onClick={() => { setTreasureSearchOpen((open) => !open); if (treasureSearchOpen) setTreasureSearch(""); }} className="rounded-full border border-[#EEE0D5] bg-white px-3 py-1.5 text-xs text-[#777B7E]">⌕ 検索</button>
-                    <span className="text-xs text-[#999999]">{treasures.filter((item) => listCategory === "すべて" || (item.category || "その他") === listCategory).length}件</span>
-                  </div>
-                </div>
-                {treasureSearchOpen && <input autoFocus type="search" value={treasureSearch} onChange={(event) => setTreasureSearch(event.target.value)} placeholder="タイトル・URL・メモ" className={`${inputClass} mb-2 !py-2.5`} />}
-                <div className="flex gap-2 overflow-x-auto pb-1">{["すべて", ...treasureCategories].map((category) => <button key={category} onClick={() => setListCategory(category)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium ${listCategory === category ? "border-[#8EAAB3] bg-[#DCE8EC] text-[#64838D]" : "border-[#EEE7E1] bg-white text-[#888D90]"}`}>{category}</button>)}</div>
-            </section>
             <section className="space-y-3 rounded-2xl border border-[#EEE7E1] bg-white p-3 shadow-sm shadow-[#E8E0D8]/30">
               {treasures.filter((item) => (listCategory === "すべて" || (item.category || "その他") === listCategory) && (!treasureSearch.trim() || [item.title, item.url, item.note, item.siteName, item.category, ...(item.comments || []).map((comment) => comment.text)].some((value) => (value || "").toLowerCase().includes(treasureSearch.trim().toLowerCase())))).length ? (
                 <div className="space-y-3">
@@ -741,9 +742,6 @@ export default function Home() {
 
         {today && view === "graphs" && (
           <div className="space-y-3">
-            <section className={sectionClass}>
-              <p className="mb-3 text-xs text-[#929292]">日常記録 {monthRecordEntries.length}日分</p>
-            </section>
             <section className={sectionClass}>
               <h2 className={`${sectionTitleClass} mb-4`}>{graphCategory}</h2>
               {graphCategory !== "支出" && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
