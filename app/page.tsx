@@ -346,7 +346,6 @@ export default function Home() {
     setExpenses(record?.expenses?.length ? record.expenses : [{ id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
     setMemo(record?.memo ?? "");
     setTomorrowTodo(record?.tomorrowTodo ?? "");
-    setSavedMessage("");
   }, [selectedDate, records, categories]);
 
   const totalExpense = useMemo(
@@ -528,6 +527,7 @@ export default function Home() {
 
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
+      {savedMessage && <div role="status" className="fixed inset-x-0 top-[max(env(safe-area-inset-top),12px)] z-[100] mx-auto w-fit rounded-full bg-[#FFF3E9] px-5 py-2.5 text-sm font-semibold text-[#D9874F] shadow-md">{savedMessage}</div>}
       {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list") && (
         <header className={`fixed inset-x-0 top-0 z-50 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[env(safe-area-inset-top)] shadow-none opacity-100 [backdrop-filter:none] [-webkit-backdrop-filter:none] ${view === "graphs" ? "min-h-[calc(58px+env(safe-area-inset-top))]" : ""}`}>
           <div className="mx-auto max-w-2xl px-3 pb-2 pt-2 sm:px-6">
@@ -618,10 +618,10 @@ export default function Home() {
                     {records[selectedDate]?.activity && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"労働":"/icons/work.svg","外出":"/icons/outing.svg","イベント":"/icons/event.svg","まったり":"/icons/relax.svg"} as Record<string,string>)[records[selectedDate].activity]} alt={records[selectedDate].activity} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">過ごし方</span></div>}
                     {records[selectedDate]?.condition && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"◎":"/icons/condition-best.svg","〇":"/icons/condition-good.svg","△":"/icons/condition-mid.svg","×":"/icons/condition-bad.svg"} as Record<string,string>)[records[selectedDate].condition]} alt={records[selectedDate].condition} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">体調</span></div>}
                   </div>}
-                  {(records[selectedDate]?.breakfast?.trim() || records[selectedDate]?.lunch?.trim() || records[selectedDate]?.dinner?.trim() || records[selectedDate]?.snack?.trim()) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 text-sm font-semibold text-[#D9874F]">ごはん</p><div className="space-y-2 text-sm">{([ ["朝", records[selectedDate]?.breakfast], ["昼", records[selectedDate]?.lunch], ["夜", records[selectedDate]?.dinner], ["おやつ", records[selectedDate]?.snack] ] as [string, string | undefined][]).filter(([, value]) => value?.trim()).map(([label, value]) => <p key={label} className="whitespace-pre-wrap"><span className="mr-2 inline-block min-w-10 text-[#999999]">{label}</span><span>{value}</span></p>)}</div></div>}
-                  {!!records[selectedDate]?.expenses?.some((e) => e.amount || e.detail) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#D9874F]"><span>支出</span><span>{selectedDayExpenseTotal.toLocaleString("ja-JP")}円</span></p><div className="space-y-1">{records[selectedDate].expenses.filter((e) => e.amount || e.detail).map((e) => <p key={e.id} className="py-0.5 text-sm text-[#C4BCB6]">{e.category}　{e.amount ? `${Number(e.amount).toLocaleString("ja-JP")}円` : ""}　<span className="text-[#D8D2CD]">{e.detail}</span></p>)}</div></div>}
-                  {records[selectedDate]?.memo && <p className="whitespace-pre-wrap leading-6">{records[selectedDate].memo}</p>}
-                  {records[selectedDate]?.tomorrowTodo?.trim() && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFF3E9] p-3"><p className="mb-1 text-sm font-semibold text-[#D9874F]">明日やりたいこと</p><p className="whitespace-pre-wrap leading-6">{records[selectedDate].tomorrowTodo}</p></div>}
+                  {records[selectedDate]?.memo?.trim() && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-1 text-sm font-semibold text-[#D9874F]">今日のメモ</p><p className="whitespace-pre-wrap leading-6">{records[selectedDate].memo}</p></div>}
+                  {(records[selectedDate]?.breakfast?.trim() || records[selectedDate]?.lunch?.trim() || records[selectedDate]?.dinner?.trim() || records[selectedDate]?.snack?.trim()) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 text-sm font-semibold text-[#D9874F]">ごはん</p><div className="space-y-2 text-sm">{([ ["朝", records[selectedDate]?.breakfast], ["昼", records[selectedDate]?.lunch], ["夜", records[selectedDate]?.dinner], ["おやつ", records[selectedDate]?.snack] ] as [string, string | undefined][]).filter(([, value]) => value?.trim()).map(([label, value]) => <div key={label} className="grid grid-cols-[2.75rem_minmax(0,1fr)]"><span className="text-[#999999]">{label}</span><span className="whitespace-pre-wrap break-words">{value}</span></div>)}</div></div>}
+                  {!!records[selectedDate]?.expenses?.some((e) => e.amount || e.detail) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#D9874F]"><span>支出</span><span>{selectedDayExpenseTotal.toLocaleString("ja-JP")}円</span></p><div className="space-y-1">{records[selectedDate].expenses.filter((e) => e.amount || e.detail).map((e) => <p key={e.id} className="py-0.5 text-sm text-[#C4BCB6]">{e.category}{e.amount ? `　${Number(e.amount).toLocaleString("ja-JP")}円` : ""}{e.detail ? `（${e.detail}）` : ""}</p>)}</div></div>}
+                  
                 </div>
               ) : <p className="text-sm text-[#999999]">この日の記録はまだありません。</p>}
             </section>
@@ -712,7 +712,7 @@ export default function Home() {
               <textarea value={tomorrowTodo} onChange={(event) => setTomorrowTodo(event.target.value)} rows={3} placeholder="明日やりたいことを書いてね…" className={`${inputClass} resize-y leading-6 !border-[#F2D6C2] !bg-[#FFF3E9]`} />
             </section>
             <button type="button" onClick={saveDailyRecord} className="w-full rounded-2xl bg-[#E9A16F] px-5 py-4 text-base font-semibold text-white shadow-lg shadow-[#F2D4BE]/70 transition hover:bg-[#DF925D]">日常記録を保存</button>
-            {savedMessage && <p role="status" className="rounded-xl bg-white px-3 py-2 text-center text-sm text-[#D9874F] shadow-sm">{savedMessage}</p>}
+
           </div>
         )}
 
