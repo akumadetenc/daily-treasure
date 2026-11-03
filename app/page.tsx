@@ -14,6 +14,7 @@ type DailyRecord = {
   snack: string;
   expenses: Expense[];
   memo: string;
+  tomorrowTodo?: string;
   updatedAt?: string;
 };
 type TreasureComment = { id: string; text: string; createdAt: string };
@@ -80,7 +81,7 @@ function detectTreasureCategory(value: string, categories: string[], rules: Reco
 export default function Home() {
   const [today, setToday] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [view, setView] = useState<"calendar" | "daily" | "treasures" | "treasure-list" | "settings" | "graphs">("calendar");
+  const [view, setView] = useState<"calendar" | "daily" | "treasures" | "treasure-list" | "settings" | "graphs">("daily");
   const [monthDate, setMonthDate] = useState<Date | null>(null);
   const [records, setRecords] = useState<Record<string, DailyRecord>>({});
   const [treasures, setTreasures] = useState<Treasure[]>([]);
@@ -103,6 +104,7 @@ export default function Home() {
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_EXPENSE_COLORS);
   const [memo, setMemo] = useState("");
+  const [tomorrowTodo, setTomorrowTodo] = useState("");
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
@@ -343,6 +345,7 @@ export default function Home() {
     setSnack(record?.snack ?? "");
     setExpenses(record?.expenses?.length ? record.expenses : [{ id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
     setMemo(record?.memo ?? "");
+    setTomorrowTodo(record?.tomorrowTodo ?? "");
     setSavedMessage("");
   }, [selectedDate, records, categories]);
 
@@ -365,7 +368,7 @@ export default function Home() {
     setMonthDate(new Date(monthYear, month + delta, 1));
   }
   function saveDailyRecord() {
-    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, updatedAt: new Date().toISOString() } };
+    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, tomorrowTodo, updatedAt: new Date().toISOString() } };
     setRecords(next);
     localStorage.setItem(RECORDS_KEY, JSON.stringify(next));
     localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
@@ -520,7 +523,7 @@ export default function Home() {
   }, 0);
   const hasDailyRecord = (date: string) => {
     const record = records[date];
-    return !!record && (!!record.mood || !!record.activity || !!record.condition || !!record.breakfast?.trim() || !!record.lunch?.trim() || !!record.dinner?.trim() || !!record.snack?.trim() || !!record.memo?.trim() || record.expenses?.some((e) => !!e.amount || !!e.detail.trim()));
+    return !!record && (!!record.mood || !!record.activity || !!record.condition || !!record.breakfast?.trim() || !!record.lunch?.trim() || !!record.dinner?.trim() || !!record.snack?.trim() || !!record.memo?.trim() || !!record.tomorrowTodo?.trim() || record.expenses?.some((e) => !!e.amount || !!e.detail.trim()));
   };
 
   return (
@@ -618,6 +621,7 @@ export default function Home() {
                   {(records[selectedDate]?.breakfast?.trim() || records[selectedDate]?.lunch?.trim() || records[selectedDate]?.dinner?.trim() || records[selectedDate]?.snack?.trim()) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 text-sm font-semibold text-[#D9874F]">ごはん</p><div className="space-y-2 text-sm">{([ ["朝", records[selectedDate]?.breakfast], ["昼", records[selectedDate]?.lunch], ["夜", records[selectedDate]?.dinner], ["おやつ", records[selectedDate]?.snack] ] as [string, string | undefined][]).filter(([, value]) => value?.trim()).map(([label, value]) => <p key={label} className="whitespace-pre-wrap"><span className="mr-2 inline-block min-w-10 text-[#999999]">{label}</span><span>{value}</span></p>)}</div></div>}
                   {!!records[selectedDate]?.expenses?.some((e) => e.amount || e.detail) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#D9874F]"><span>支出</span><span>{selectedDayExpenseTotal.toLocaleString("ja-JP")}円</span></p><div className="space-y-1">{records[selectedDate].expenses.filter((e) => e.amount || e.detail).map((e) => <p key={e.id} className="py-0.5 text-sm text-[#C4BCB6]">{e.category}　{e.amount ? `${Number(e.amount).toLocaleString("ja-JP")}円` : ""}　<span className="text-[#D8D2CD]">{e.detail}</span></p>)}</div></div>}
                   {records[selectedDate]?.memo && <p className="whitespace-pre-wrap leading-6">{records[selectedDate].memo}</p>}
+                  {records[selectedDate]?.tomorrowTodo?.trim() && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFF3E9] p-3"><p className="mb-1 text-sm font-semibold text-[#D9874F]">明日やりたいこと</p><p className="whitespace-pre-wrap leading-6">{records[selectedDate].tomorrowTodo}</p></div>}
                 </div>
               ) : <p className="text-sm text-[#999999]">この日の記録はまだありません。</p>}
             </section>
@@ -701,7 +705,11 @@ export default function Home() {
             </section>
             <section className={sectionClass}>
               <h2 className={sectionTitleClass}>今日のメモ</h2>
-              <textarea value={memo} onChange={(event) => setMemo(event.target.value)} rows={5} placeholder="今日あったこと、思ったことなど…" className={`${inputClass} resize-y leading-6`} />
+              <textarea value={memo} onChange={(event) => setMemo(event.target.value)} rows={5} placeholder={records[(() => { const d = new Date(`${selectedDate}T12:00:00`); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })()]?.tomorrowTodo || "今日あったこと、思ったことなど…"} className={`${inputClass} resize-y leading-6 placeholder:text-[#D8BDAA]`} />
+            </section>
+            <section className={sectionClass}>
+              <h2 className={sectionTitleClass}>明日やりたいこと</h2>
+              <textarea value={tomorrowTodo} onChange={(event) => setTomorrowTodo(event.target.value)} rows={3} placeholder="明日やりたいことを書いてね…" className={`${inputClass} resize-y leading-6 !border-[#F2D6C2] !bg-[#FFF3E9]`} />
             </section>
             <button type="button" onClick={saveDailyRecord} className="w-full rounded-2xl bg-[#E9A16F] px-5 py-4 text-base font-semibold text-white shadow-lg shadow-[#F2D4BE]/70 transition hover:bg-[#DF925D]">日常記録を保存</button>
             {savedMessage && <p role="status" className="rounded-xl bg-white px-3 py-2 text-center text-sm text-[#D9874F] shadow-sm">{savedMessage}</p>}
