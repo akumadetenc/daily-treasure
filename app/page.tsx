@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import SkinDailyRecord, { initialSkinState, type SkinState } from "./components/SkinDailyRecord";
+import TodaySkincare from "./components/TodaySkincare";
+import SkinGraph from "./components/SkinGraph";
+import { createClient } from "@/utils/supabase/client";
 
 type Expense = { id: string; category: string; amount: string; detail: string };
-type GraphCategory = "気分" | "体調" | "過ごし方" | "支出";
+type GraphCategory = "気分" | "体調" | "過ごし方" | "支出" | "肌記録";
 type DailyRecord = {
   mood: string;
   activity: string;
@@ -15,10 +19,19 @@ type DailyRecord = {
   expenses: Expense[];
   memo: string;
   tomorrowTodo?: string;
+  bowelCount?: number;
+  bowelSoftness?: string;
+  exercise?: string;
+  periodStatus?: string;
   updatedAt?: string;
 };
 type TreasureComment = { id: string; text: string; createdAt: string };
 type Treasure = { id: string; date: string; url: string; title: string; note: string; comments?: TreasureComment[]; thumbnail?: string; siteName?: string; category?: string; createdAt: string };
+type SkinDailyState = { acne: string; comedones: string; roughness: string; dryness: string; redness: string; overallScore: number };
+type TreatmentCalendarRecord = { id: string; treatment_date: string };
+type TreatmentCalendarItem = { treatment_record_id: string; treatment_id: string };
+type TreatmentCalendar = { id: string; name: string };
+type SkincareCalendarProduct = { id: string; name: string; brand: string | null };
 
 const DEFAULT_CATEGORIES = ["食費", "日用品", "美容", "交通費", "趣味", "交際費", "その他"];
 const MOODS = ["最高", "良い", "普通", "微妙", "つらい"];
@@ -33,6 +46,8 @@ const COLOR_PALETTE = ["#E85D5D", "#E89AB5", "#E7C85B", "#80B88A", "#A78BD4", "#
 const DEFAULT_EXPENSE_COLORS: Record<string, string> = { "食費": "#E85D5D", "日用品": "#E89AB5", "美容": "#E7C85B", "交通費": "#80B88A", "趣味": "#A78BD4", "交際費": "#8EAAB3", "その他": "#E9A16F" };
 const TREASURE_CATEGORIES_KEY = "daily-treasure-treasure-categories-v1";
 const CATEGORY_RULES_KEY = "daily-treasure-category-rules-v1";
+const SKIN_DAILY_KEY = "takarabako-skin-daily-v1";
+const TODAY_SKINCARE_KEY = "takarabako-today-skincare-v1";
 const DEFAULT_TREASURE_CATEGORIES = ["動画", "漫画", "Webページ", "商品", "食べ物", "旅行", "写真", "メモ", "その他"];
 const DEFAULT_CATEGORY_RULES: Record<string, string> = {
   "動画": "youtube.com, youtu.be, nicovideo.jp, tiktok.com",
@@ -81,7 +96,7 @@ function detectTreasureCategory(value: string, categories: string[], rules: Reco
 export default function Home() {
   const [today, setToday] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
-  const [view, setView] = useState<"calendar" | "daily" | "treasures" | "treasure-list" | "settings" | "graphs">("daily");
+  const [view, setView] = useState<"calendar" | "daily" | "treasures" | "treasure-list" | "settings" | "graphs" | "sparkle">("daily");
   const [monthDate, setMonthDate] = useState<Date | null>(null);
   const [records, setRecords] = useState<Record<string, DailyRecord>>({});
   const [treasures, setTreasures] = useState<Treasure[]>([]);
@@ -105,6 +120,10 @@ export default function Home() {
   const [categoryColors, setCategoryColors] = useState<Record<string, string>>(DEFAULT_EXPENSE_COLORS);
   const [memo, setMemo] = useState("");
   const [tomorrowTodo, setTomorrowTodo] = useState("");
+  const [bowelCount, setBowelCount] = useState("0");
+  const [bowelSoftness, setBowelSoftness] = useState("");
+  const [exercise, setExercise] = useState("");
+  const [periodStatus, setPeriodStatus] = useState("");
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
@@ -119,7 +138,16 @@ export default function Home() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewMessage, setPreviewMessage] = useState("");
   const [graphCategory, setGraphCategory] = useState<GraphCategory>("気分");
+  const [sparkleView, setSparkleView] = useState<"menu" | "cosmetics" | "treatment">("menu");
   const [expandedExpenseCategory, setExpandedExpenseCategory] = useState<string | null>(null);
+  const [skinDailyRecords, setSkinDailyRecords] = useState<Record<string, SkinDailyState>>({});
+  const [todaySkincareRecords, setTodaySkincareRecords] = useState<Record<string, string[]>>({});
+  const [skinDailyDraft, setSkinDailyDraft] = useState<SkinState>(initialSkinState);
+  const [todaySkincareDraft, setTodaySkincareDraft] = useState<string[]>([]);
+  const [treatmentCalendarRecords, setTreatmentCalendarRecords] = useState<TreatmentCalendarRecord[]>([]);
+  const [treatmentCalendarItems, setTreatmentCalendarItems] = useState<TreatmentCalendarItem[]>([]);
+  const [treatmentCalendarList, setTreatmentCalendarList] = useState<TreatmentCalendar[]>([]);
+  const [skincareCalendarProducts, setSkincareCalendarProducts] = useState<SkincareCalendarProduct[]>([]);
 
   const graphMonth = monthDate ?? new Date(2026, 0, 1);
   const monthRecordEntries = Object.entries(records).filter(([date]) => {
@@ -157,6 +185,11 @@ export default function Home() {
   const moodStats = countValues(monthRecordEntries.map(([, record]) => record.mood));
   const conditionStats = countValues(monthRecordEntries.map(([, record]) => record.condition));
   const activityStats = countValues(monthRecordEntries.map(([, record]) => record.activity));
+  const exerciseStats = countValues(monthRecordEntries.map(([, record]) => record.exercise || ""));
+  const bowelStats = countValues(monthRecordEntries.map(([, record]) => {
+    if (record.bowelCount == null) return "";
+    return record.bowelCount >= 4 ? "4以上" : String(record.bowelCount);
+  }));
   const expenseTotals: Record<string, number> = {};
   monthRecordEntries.forEach(([, record]) => (record.expenses || []).forEach((expense) => {
     const amount = Number(String(expense.amount || "").replace(/,/g, ""));
@@ -177,11 +210,11 @@ export default function Home() {
       const angle = (labelStart + portion / 2) * Math.PI * 2 - Math.PI / 2;
       labelStart += portion;
       return { label, value, x: 50 + Math.cos(angle) * 29, y: 50 + Math.sin(angle) * 29, color: colorForStat(label, index), portion };
-    }).filter((item) => item.portion >= 0.07);
+    });
     return (
       <div className="flex flex-col items-center">
         <div className="relative h-48 w-48 shrink-0 rounded-full" style={{ background: total ? `conic-gradient(${segments.join(", ")})` : "#F1EBE5" }} aria-label="円グラフ">
-          {labels.map((item) => <span key={item.label} className="absolute -translate-x-1/2 -translate-y-1/2 px-0 py-0 text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]" style={{ left: `${item.x}%`, top: `${item.y}%` }}>{item.value}</span>)}
+          {labels.map((item) => <span key={item.label} className="absolute -translate-x-1/2 -translate-y-1/2 px-0 py-0 text-xs font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]" style={{ left: `${item.x}%`, top: `${item.y}%` }}>{item.label}・{item.value}</span>)}
         </div>
         {!stats.length && <p className="mt-3 text-sm text-[#999999]">データなし</p>}
       </div>
@@ -192,6 +225,12 @@ export default function Home() {
   }
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedView = params.get("view");
+    if (requestedView === "calendar") setView("calendar");
+    if (requestedView === "graphs") setView("graphs");
+    if (requestedView === "treasure-list") setView("treasure-list");
+    if (requestedView === "sparkle") window.location.replace("/cosmetics");
     const currentDay = todayString();
     setToday(currentDay);
     setSelectedDate(currentDay);
@@ -239,6 +278,39 @@ export default function Home() {
       // 保存データを読み込めない場合も画面は利用できます。
     }
   }, [today]);
+
+  useEffect(() => {
+    if (!today) return;
+    try {
+      const skinRaw = localStorage.getItem(SKIN_DAILY_KEY);
+      const skinParsed = skinRaw ? JSON.parse(skinRaw) : {};
+      if (skinParsed && typeof skinParsed === "object") setSkinDailyRecords(skinParsed);
+
+      const skincareRaw = localStorage.getItem(TODAY_SKINCARE_KEY);
+      const skincareParsed = skincareRaw ? JSON.parse(skincareRaw) : {};
+      if (skincareParsed && typeof skincareParsed === "object") setTodaySkincareRecords(skincareParsed);
+    } catch {
+      // 肌記録・スキンケア記録を読めない場合もカレンダーは利用できます。
+    }
+
+    let cancelled = false;
+    async function loadCalendarSkinAndTreatment() {
+      const supabase = createClient();
+      const [treatmentRecordsResult, treatmentItemsResult, treatmentListResult, productResult] = await Promise.all([
+        supabase.from("treatment_records").select("id, treatment_date").order("treatment_date"),
+        supabase.from("treatment_record_items").select("treatment_record_id, treatment_id"),
+        supabase.from("treatments").select("id, name").order("name"),
+        supabase.from("skincare_products").select("id, name, brand").order("name"),
+      ]);
+      if (cancelled) return;
+      if (!treatmentRecordsResult.error) setTreatmentCalendarRecords((treatmentRecordsResult.data || []) as TreatmentCalendarRecord[]);
+      if (!treatmentItemsResult.error) setTreatmentCalendarItems((treatmentItemsResult.data || []) as TreatmentCalendarItem[]);
+      if (!treatmentListResult.error) setTreatmentCalendarList((treatmentListResult.data || []) as TreatmentCalendar[]);
+      if (!productResult.error) setSkincareCalendarProducts((productResult.data || []) as SkincareCalendarProduct[]);
+    }
+    void loadCalendarSkinAndTreatment();
+    return () => { cancelled = true; };
+  }, [today, view]);
 
   // 以前に保存したURLでタイトル・サムネイルが空の宝物も、表示時に補完する。
   useEffect(() => {
@@ -346,6 +418,10 @@ export default function Home() {
     setExpenses(record?.expenses?.length ? record.expenses : [{ id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
     setMemo(record?.memo ?? "");
     setTomorrowTodo(record?.tomorrowTodo ?? "");
+    setBowelCount(record?.bowelCount != null ? String(record.bowelCount) : "0");
+    setBowelSoftness(record?.bowelSoftness ?? "");
+    setExercise(record?.exercise ?? "");
+    setPeriodStatus(record?.periodStatus ?? "");
   }, [selectedDate, records, categories]);
 
   const totalExpense = useMemo(
@@ -367,10 +443,16 @@ export default function Home() {
     setMonthDate(new Date(monthYear, month + delta, 1));
   }
   function saveDailyRecord() {
-    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, tomorrowTodo, updatedAt: new Date().toISOString() } };
+    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, tomorrowTodo, bowelCount: Number(bowelCount), bowelSoftness, exercise, periodStatus, updatedAt: new Date().toISOString() } };
+    const nextSkinDaily = { ...skinDailyRecords, [selectedDate]: skinDailyDraft };
+    const nextTodaySkincare = { ...todaySkincareRecords, [selectedDate]: todaySkincareDraft };
     setRecords(next);
+    setSkinDailyRecords(nextSkinDaily);
+    setTodaySkincareRecords(nextTodaySkincare);
     localStorage.setItem(RECORDS_KEY, JSON.stringify(next));
     localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+    localStorage.setItem(SKIN_DAILY_KEY, JSON.stringify(nextSkinDaily));
+    localStorage.setItem(TODAY_SKINCARE_KEY, JSON.stringify(nextTodaySkincare));
     setSavedMessage("保存しました");
     window.setTimeout(() => setSavedMessage(""), 2400);
   }
@@ -515,6 +597,37 @@ export default function Home() {
   const inputClass = "w-full min-w-0 rounded-xl border border-[#F0DED0] bg-white px-3 py-3 text-base text-[#55585A] outline-none transition placeholder:text-[#A8A8A8] focus:border-[#E9A16F] focus:ring-2 focus:ring-[#FBE9DB]";
   const sectionClass = "rounded-2xl border border-[#EEE7E1] bg-white p-4 shadow-sm shadow-[#E8E0D8]/30 sm:p-5";
   const sectionTitleClass = "mb-4 flex items-center justify-between gap-3 text-base font-semibold text-[#55585A]";
+  function getSkinDailyRecord(date: string) {
+    return skinDailyRecords[date] || null;
+  }
+  function getSkincareNames(date: string) {
+    const ids = todaySkincareRecords[date] || [];
+    return skincareCalendarProducts.filter((product) => ids.includes(product.id));
+  }
+  function getTreatmentNames(date: string) {
+    const recordIds = treatmentCalendarRecords.filter((record) => record.treatment_date === date).map((record) => record.id);
+    const treatmentIds = treatmentCalendarItems.filter((item) => recordIds.includes(item.treatment_record_id)).map((item) => item.treatment_id);
+    return treatmentCalendarList.filter((treatment) => treatmentIds.includes(treatment.id));
+  }
+  function hasSkinDailyRecord(date: string) {
+    return !!getSkinDailyRecord(date);
+  }
+  function hasSkincareRecord(date: string) {
+    return (todaySkincareRecords[date] || []).length > 0;
+  }
+  function hasTreatmentRecord(date: string) {
+    return treatmentCalendarRecords.some((record) => record.treatment_date === date);
+  }
+
+  const selectedSkinDaily = getSkinDailyRecord(selectedDate);
+  const selectedSkincareNames = getSkincareNames(selectedDate);
+
+  useEffect(() => {
+    setSkinDailyDraft(selectedSkinDaily ? { ...initialSkinState, ...selectedSkinDaily } : initialSkinState);
+    setTodaySkincareDraft(todaySkincareRecords[selectedDate] || []);
+  }, [selectedDate, selectedSkinDaily, todaySkincareRecords]);
+  const selectedTreatmentNames = getTreatmentNames(selectedDate);
+
   const selectedTreasures = treasures.filter((item) => item.date === selectedDate);
   const selectedDayExpenseTotal = (records[selectedDate]?.expenses || []).reduce((sum, expense) => {
     const amount = Number(String(expense.amount || "").replace(/,/g, ""));
@@ -522,14 +635,13 @@ export default function Home() {
   }, 0);
   const hasDailyRecord = (date: string) => {
     const record = records[date];
-    return !!record && (!!record.mood || !!record.activity || !!record.condition || !!record.breakfast?.trim() || !!record.lunch?.trim() || !!record.dinner?.trim() || !!record.snack?.trim() || !!record.memo?.trim() || !!record.tomorrowTodo?.trim() || record.expenses?.some((e) => !!e.amount || !!e.detail.trim()));
+    return !!record && (!!record.mood || !!record.activity || !!record.condition || !!record.breakfast?.trim() || !!record.lunch?.trim() || !!record.dinner?.trim() || !!record.snack?.trim() || !!record.memo?.trim() || !!record.tomorrowTodo?.trim() || !!record.bowelSoftness || !!record.exercise || !!record.periodStatus || record.bowelCount != null || record.expenses?.some((e) => !!e.amount || !!e.detail.trim()));
   };
 
   return (
     <main className="fixed inset-0 z-0 h-[100dvh] overflow-hidden overscroll-none bg-[#FFFAF6] text-[#55585A]">
-      {savedMessage && <div role="status" className="fixed inset-x-0 top-[max(env(safe-area-inset-top),12px)] z-[100] mx-auto w-fit rounded-full bg-[#FFF3E9] px-5 py-2.5 text-sm font-semibold text-[#D9874F] shadow-md">{savedMessage}</div>}
-      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list") && (
-        <header className={`fixed inset-x-0 top-0 z-50 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[env(safe-area-inset-top)] shadow-none opacity-100 [backdrop-filter:none] [-webkit-backdrop-filter:none] ${view === "graphs" ? "min-h-[calc(58px+env(safe-area-inset-top))]" : ""}`}>
+      {today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" || view === "sparkle") && (
+        <header className={`fixed inset-x-0 z-50 isolate border-b border-[#EEE7E1] bg-[#FFFAF6] pt-[env(safe-area-inset-top)] shadow-none opacity-100 [backdrop-filter:none] [-webkit-backdrop-filter:none] ${view === "treasures" || view === "treasure-list" ? "top-0" : "top-0"} ${view === "graphs" ? "min-h-[calc(58px+env(safe-area-inset-top))]" : ""}`}>
           <div className="mx-auto max-w-2xl px-3 pb-2 pt-2 sm:px-6">
             {view === "calendar" ? (
               <div className="flex items-center justify-between gap-2">
@@ -546,22 +658,51 @@ export default function Home() {
                   <span className="text-base font-semibold text-[#55585A]">{getMonthLabel(graphMonth.getFullYear(), graphMonth.getMonth())}</span>
                   <button type="button" aria-label="次の月" onClick={() => setMonthDate(new Date(graphMonth.getFullYear(), graphMonth.getMonth() + 1, 1))} className="shrink-0 px-2 py-1 text-lg text-[#D9874F]">›</button>
                 </div>
-                <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#F5F0EB] p-1">
-                  <button onClick={() => setGraphCategory("気分")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory !== "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>日常の記録</button>
+                <div className="grid grid-cols-3 gap-1 rounded-xl bg-[#F5F0EB] p-1">
+                  <button onClick={() => setGraphCategory("気分")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory !== "支出" && graphCategory !== "肌記録" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>日常</button>
                   <button onClick={() => setGraphCategory("支出")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory === "支出" ? "bg-white font-semibold text-[#D9874F] shadow-sm" : "text-[#777B7E]"}`}>支出</button>
+                  <button onClick={() => setGraphCategory("肌記録")} className={`rounded-lg px-2 py-2 text-sm ${graphCategory === "肌記録" ? "bg-white font-semibold text-[#5D727A] shadow-sm" : "text-[#777B7E]"}`}>肌記録</button>
                 </div>
               </div>
-            ) : view === "treasure-list" ? (
+            ) : view === "sparkle" ? (
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#F5F0EB] p-1">
+                <a href="/cosmetics" className="rounded-lg bg-white px-2 py-2 text-center text-sm font-semibold text-[#5D727A] shadow-sm">アイテム</a>
+                <a href="/treatment" className="rounded-lg px-2 py-2 text-center text-sm text-[#777B7E]">施術</a>
+              </div>
+            ) : (view === "treasures" || view === "treasure-list") ? (
               <div className="space-y-2 pb-1">
-                <div className="flex items-center justify-between gap-2">
-                  <button onClick={() => setView("settings")} className="text-xs font-medium text-[#D9874F]">カテゴリ設定</button>
-                  <div className="flex items-center gap-2">
-                    <button type="button" aria-label="検索" onClick={() => { setTreasureSearchOpen((open) => !open); if (treasureSearchOpen) setTreasureSearch(""); }} className="rounded-full border border-[#EEE0D5] bg-white px-3 py-1.5 text-xs text-[#777B7E]">⌕ 検索</button>
-                    <span className="text-xs text-[#999999]">{treasures.filter((item) => listCategory === "すべて" || (item.category || "その他") === listCategory).length}件</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setView("settings")} className="shrink-0 text-xs font-medium text-[#D9874F]">カテゴリ設定</button>
+                  <input
+                    type="search"
+                    value={treasureSearch}
+                    onChange={(event) => setTreasureSearch(event.target.value)}
+                    placeholder="検索"
+                    aria-label="宝物を検索"
+                    className={`${inputClass} min-w-0 flex-1 !py-1.5 !px-3 text-xs`}
+                  />
+                </div>
+                <div className="flex items-center gap-2 pb-1">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+                    <button
+                      type="button"
+                      onClick={() => setView("treasures")}
+                      className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold ${view === "treasures" ? "border-[#E9A16F] bg-[#E9A16F] text-white" : "border-[#E9B995] bg-[#FFFCF9] text-[#D9874F]"}`}
+                    >
+                      ＋追加
+                    </button>
+                    {["すべて", ...treasureCategories].map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => { setListCategory(category); setView("treasure-list"); }}
+                        className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium ${listCategory === category && view === "treasure-list" ? "border-[#8EAAB3] bg-[#DCE8EC] text-[#64838D]" : "border-[#EEE7E1] bg-white text-[#888D90]"}`}
+                      >
+                        {category}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                {treasureSearchOpen && <input autoFocus type="search" value={treasureSearch} onChange={(event) => setTreasureSearch(event.target.value)} placeholder="タイトル・URL・メモ" className={`${inputClass} !py-2`} />}
-                <div className="flex gap-2 overflow-x-auto pb-1">{["すべて", ...treasureCategories].map((category) => <button key={category} onClick={() => setListCategory(category)} className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium ${listCategory === category ? "border-[#8EAAB3] bg-[#DCE8EC] text-[#64838D]" : "border-[#EEE7E1] bg-white text-[#888D90]"}`}>{category}</button>)}</div>
               </div>
             ) : (
               <div className="py-1"><span className="text-sm font-semibold text-[#777B7E]">{formatDate(today)}</span></div>
@@ -570,8 +711,8 @@ export default function Home() {
         </header>
       )}
       <div
-        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
-        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list") ? ((view === "graphs" || view === "treasure-list") ? "calc(max(env(safe-area-inset-top), 8px) + 112px)" : "calc(max(env(safe-area-inset-top), 8px) + 58px)") : "0px" }}
+        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" || view === "sparkle" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
+        style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" || view === "sparkle") ? (view === "graphs" ? "calc(max(env(safe-area-inset-top), 8px) + 132px)" : (view === "treasure-list" || view === "treasures" ? "calc(max(env(safe-area-inset-top), 8px) + 80px)" : "calc(max(env(safe-area-inset-top), 8px) + 58px)")) : "0px" }}
       >
       <div className="mx-auto max-w-2xl">
         {!today || !selectedDate || !monthDate ? (
@@ -602,6 +743,9 @@ export default function Home() {
                         {records[date]?.condition && <img src={({"◎":"/icons/condition-calendar-best.svg","〇":"/icons/condition-calendar-good.svg","△":"/icons/condition-calendar-mid.svg","×":"/icons/condition-calendar-bad.svg"} as Record<string,string>)[records[date].condition]} alt={records[date].condition} className="h-3 w-3 object-contain" />}
                         {daily && !(records[date]?.expenses || []).some((expense) => Number(String(expense.amount || "").replace(/,/g, "")) > 0) && <span className={isSelected ? "text-white" : "text-[#E9A16F]"}>✦</span>}
                         {treasure && <span className={isSelected ? "text-[#DCE8EC]" : "text-[#8EAAB3]"}>✦</span>}
+                        {hasSkinDailyRecord(date) && <span className={isSelected ? "text-white" : "text-[#A8C6D1]"}>●</span>}
+                        {hasSkincareRecord(date) && <span className={isSelected ? "text-white" : "text-[#8FB5C2]"}>●</span>}
+                        {hasTreatmentRecord(date) && <span className={isSelected ? "text-white" : "text-[#A78BD4]"}>●</span>}
                       </span>
                     </button>
                   );
@@ -610,7 +754,12 @@ export default function Home() {
             </section>
 
             <section className={sectionClass}>
-              <h3 className={sectionTitleClass}><span>日常記録</span>{hasDailyRecord(selectedDate) && <button onClick={() => setView("daily")} className="rounded-lg bg-[#FFF0E4] px-3 py-1.5 text-xs font-medium text-[#D9874F]">記録編集</button>}</h3>
+              <h3 className={sectionTitleClass}>今日のメモ</h3>
+              {records[selectedDate]?.memo?.trim() ? <p className="whitespace-pre-wrap text-sm leading-6 text-[#62666A]">{records[selectedDate].memo}</p> : <p className="text-sm text-[#999999]">今日のメモはありません。</p>}
+            </section>
+
+            <section className={sectionClass}>
+              <h3 className={sectionTitleClass}><span>日常</span>{hasDailyRecord(selectedDate) && <button onClick={() => setView("daily")} className="rounded-lg bg-[#FFF0E4] px-3 py-1.5 text-xs font-medium text-[#D9874F]">記録編集</button>}</h3>
               {hasDailyRecord(selectedDate) ? (
                 <div className="space-y-3 text-sm">
                   {(records[selectedDate]?.mood || records[selectedDate]?.activity || records[selectedDate]?.condition) && <div className="flex items-center gap-4">
@@ -618,13 +767,53 @@ export default function Home() {
                     {records[selectedDate]?.activity && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"労働":"/icons/work.svg","外出":"/icons/outing.svg","イベント":"/icons/event.svg","まったり":"/icons/relax.svg"} as Record<string,string>)[records[selectedDate].activity]} alt={records[selectedDate].activity} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">過ごし方</span></div>}
                     {records[selectedDate]?.condition && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"◎":"/icons/condition-best.svg","〇":"/icons/condition-good.svg","△":"/icons/condition-mid.svg","×":"/icons/condition-bad.svg"} as Record<string,string>)[records[selectedDate].condition]} alt={records[selectedDate].condition} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">体調</span></div>}
                   </div>}
-                  {records[selectedDate]?.memo?.trim() && <p className="whitespace-pre-wrap text-sm leading-6 text-[#62666A]">{records[selectedDate].memo}</p>}
+                  {(records[selectedDate]?.bowelCount != null || records[selectedDate]?.exercise || records[selectedDate]?.periodStatus) && <div className="flex items-start gap-4">
+                    {records[selectedDate]?.bowelCount != null && <div className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center"><span className="text-lg font-bold leading-none text-[#64838D]">{records[selectedDate].bowelCount >= 4 ? "4+" : records[selectedDate].bowelCount}</span>{records[selectedDate]?.bowelSoftness && <><span className="text-[10px] text-[#B0A7A1]">{records[selectedDate].bowelSoftness}</span><span className="text-[10px] text-[#999999]">柔らかさ</span></>}</div>}
+                    {records[selectedDate]?.exercise && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"○":"/icons/exercise-good.svg","△":"/icons/exercise-mid.svg","×":"/icons/exercise-bad.svg"} as Record<string,string>)[records[selectedDate].exercise]} alt={`運動 ${records[selectedDate].exercise}`} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">運動</span></div>}
+                    {records[selectedDate]?.periodStatus && <div className="flex min-w-0 flex-1 flex-col items-center gap-1"><img src={({"ピル":"/icons/period-pill.svg","休薬":"/icons/period-rest.svg","生理中":"/icons/period-menstruation.svg"} as Record<string,string>)[records[selectedDate].periodStatus]} alt={records[selectedDate].periodStatus} className="h-8 w-8 object-contain" /><span className="text-xs text-[#999999]">生理</span></div>}
+                  </div>}
                   {(records[selectedDate]?.breakfast?.trim() || records[selectedDate]?.lunch?.trim() || records[selectedDate]?.dinner?.trim() || records[selectedDate]?.snack?.trim()) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 text-sm font-semibold text-[#D9874F]">ごはん</p><div className="space-y-2 text-sm">{([ ["朝", records[selectedDate]?.breakfast], ["昼", records[selectedDate]?.lunch], ["夜", records[selectedDate]?.dinner], ["おやつ", records[selectedDate]?.snack] ] as [string, string | undefined][]).filter(([, value]) => value?.trim()).map(([label, value]) => <div key={label} className="grid grid-cols-[2.75rem_minmax(0,1fr)]"><span className="text-[#999999]">{label}</span><span className="whitespace-pre-wrap break-words">{value}</span></div>)}</div></div>}
                   {!!records[selectedDate]?.expenses?.some((e) => e.amount || e.detail) && <div className="rounded-xl border border-[#F3D4BE] bg-[#FFFCF9] p-3"><p className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#D9874F]"><span>支出</span><span>{selectedDayExpenseTotal.toLocaleString("ja-JP")}円</span></p><div className="space-y-1">{records[selectedDate].expenses.filter((e) => e.amount || e.detail).map((e) => <p key={e.id} className="py-0.5 text-sm text-[#C4BCB6]">{e.category}{e.amount ? `　${Number(e.amount).toLocaleString("ja-JP")}円` : ""}{e.detail ? `（${e.detail}）` : ""}</p>)}</div></div>}
-                  
                 </div>
               ) : <p className="text-sm text-[#999999]">この日の記録はまだありません。</p>}
             </section>
+
+            {(selectedSkinDaily || selectedSkincareNames.length > 0 || selectedTreatmentNames.length > 0) && (
+              <section className={sectionClass}>
+                <h3 className={sectionTitleClass}><span>肌の記録</span>{selectedSkinDaily && <span className="text-xs font-normal text-[#9AA8AD]">総合点 {selectedSkinDaily.overallScore}</span>}</h3>
+                {selectedSkinDaily && <div className="grid grid-cols-5 gap-2">
+                  {[
+                    ["ニキビ", selectedSkinDaily.acne],
+                    ["毛穴", selectedSkinDaily.comedones],
+                    ["ざらつき", selectedSkinDaily.roughness],
+                    ["乾燥", selectedSkinDaily.dryness],
+                    ["赤み", selectedSkinDaily.redness],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-xl bg-[#F8FCFD] px-2 py-2 text-center">
+                      <p className="text-[11px] text-[#9AA8AD]">{label}</p>
+                      <p className="mt-1 text-base font-bold text-[#5D727A]">{value}</p>
+                    </div>
+                  ))}
+                </div>}
+                {selectedSkincareNames.length > 0 && <div className="mt-3 space-y-2">
+                  <p className="text-xs font-semibold text-[#9AA8AD]">今日使ったスキンケア</p>
+                  {selectedSkincareNames.map((product) => (
+                    <div key={product.id} className="rounded-xl bg-[#F8FCFD] px-3 py-2">
+                      <p className="text-sm font-semibold text-[#65777D]">{product.name}</p>
+                      {product.brand && <p className="mt-0.5 text-xs text-[#9AA8AD]">{product.brand}</p>}
+                    </div>
+                  ))}
+                </div>}
+                {selectedTreatmentNames.length > 0 && <div className="mt-3">
+                  <p className="mb-2 text-xs font-semibold text-[#9AA8AD]">施術</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTreatmentNames.map((treatment) => (
+                      <span key={treatment.id} className="rounded-full bg-[#F2ECFA] px-3 py-1.5 text-sm font-semibold text-[#8065A5]">{treatment.name}</span>
+                    ))}
+                  </div>
+                </div>}
+              </section>
+            )}
 
             <section className={sectionClass}>
               <h3 className={sectionTitleClass}><span>宝物</span><span className="text-xs font-normal text-[#999999]">{selectedTreasures.length}件</span></h3>
@@ -680,6 +869,47 @@ export default function Home() {
               </div>
             </section>
             <section className={sectionClass}>
+              <h2 className={sectionTitleClass}>お通じ</h2>
+              <div className="space-y-3">
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-[#55585A]">回数</p>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {["0", "1", "2", "3", "4以上"].map((option) => (
+                      <button key={option} type="button" onClick={() => { const next = option === "4以上" ? "4" : option; setBowelCount(next); if (next === "0") setBowelSoftness(""); }} className={`rounded-lg border py-2 text-sm font-semibold ${bowelCount === (option === "4以上" ? "4" : option) ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                    ))}
+                  </div>
+                </div>
+                {Number(bowelCount) >= 1 && (
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-[#55585A]">柔らかさ</p>
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {["硬硬", "硬", "普通", "柔", "柔柔"].map((option) => (
+                        <button key={option} type="button" onClick={() => setBowelSoftness(bowelSoftness === option ? "" : option)} className={`rounded-lg border px-1 py-2 text-xs font-semibold ${bowelSoftness === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+            <section className={sectionClass}>
+              <h2 className={sectionTitleClass}>運動</h2>
+              <div className="grid grid-cols-3 gap-2">
+                {["○", "△", "×"].map((option) => (
+                  <button key={option} type="button" onClick={() => setExercise(exercise === option ? "" : option)} className={`rounded-xl border py-3 text-base font-bold ${exercise === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                ))}
+              </div>
+            </section>
+            <section className={sectionClass}>
+              <h2 className={sectionTitleClass}>生理</h2>
+              <div className="grid grid-cols-3 gap-2">
+                {["ピル", "休薬", "生理中"].map((option) => (
+                  <button key={option} type="button" onClick={() => setPeriodStatus(periodStatus === option ? "" : option)} className={`rounded-xl border py-3 text-sm font-semibold ${periodStatus === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                ))}
+              </div>
+            </section>
+            <SkinDailyRecord state={skinDailyDraft} onChange={setSkinDailyDraft} />
+            <TodaySkincare selected={todaySkincareDraft} onChange={setTodaySkincareDraft} />
+            <section className={sectionClass}>
               <h2 className={sectionTitleClass}>ごはん</h2>
               <div className="space-y-2">
                 <input aria-label="朝ごはん" value={breakfast} onChange={(event) => setBreakfast(event.target.value)} placeholder="朝ごはん" className={inputClass} />
@@ -711,7 +941,7 @@ export default function Home() {
               <h2 className={sectionTitleClass}>明日やりたいこと</h2>
               <textarea value={tomorrowTodo} onChange={(event) => setTomorrowTodo(event.target.value)} rows={3} placeholder="明日やりたいことを書いてね…" className={`${inputClass} resize-y leading-6 !border-[#F2D6C2] !bg-[#FFF3E9]`} />
             </section>
-            <button type="button" onClick={saveDailyRecord} className="w-full rounded-2xl bg-[#E9A16F] px-5 py-4 text-base font-semibold text-white shadow-lg shadow-[#F2D4BE]/70 transition hover:bg-[#DF925D]">日常記録を保存</button>
+            <button type="button" onClick={saveDailyRecord} className="w-full rounded-2xl bg-[#E9A16F] px-5 py-4 text-base font-semibold text-white shadow-lg shadow-[#F2D4BE]/70 transition hover:bg-[#DF925D]">{savedMessage || "今日の記録を保存"}</button>
 
           </div>
         )}
@@ -773,9 +1003,9 @@ export default function Home() {
         {today && view === "graphs" && (
           <div className="space-y-3">
             <section className={sectionClass}>
-              <h2 className={`${sectionTitleClass} mb-4`}>{graphCategory}</h2>
-              {graphCategory !== "支出" && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {[{ title: "気分", stats: moodStats }, { title: "過ごし方", stats: activityStats }, { title: "体調", stats: conditionStats }].map(({ title, stats }) => <div key={title} className="rounded-xl bg-[#FFFCF9] p-3"><h3 className="mb-2 text-center text-sm font-semibold text-[#55585A]">{title}</h3><div className="scale-[0.78] origin-top"><div className="-mb-10">{renderPie(stats)}</div></div>{renderStatsList(stats)}</div>)}
+              {graphCategory === "肌記録" ? <SkinGraph month={graphMonth} /> : null}
+              {graphCategory !== "支出" && graphCategory !== "肌記録" && <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[{ title: "気分", stats: moodStats }, { title: "過ごし方", stats: activityStats }, { title: "体調", stats: conditionStats }, { title: "運動", stats: exerciseStats }, { title: "お通じ", stats: bowelStats }].map(({ title, stats }) => <div key={title} className="rounded-xl bg-[#FFFCF9] p-3"><h3 className="mb-2 text-sm font-semibold text-[#55585A]">{title}</h3><div className="scale-[0.78] origin-top"><div className="-mb-10">{renderPie(stats)}</div></div>{renderStatsList(stats)}</div>)}
               </div>}
               {graphCategory === "支出" && <>
                 <div className="mb-4 flex items-center justify-between rounded-xl bg-[#FFF3EA] px-4 py-3">
@@ -810,11 +1040,11 @@ export default function Home() {
 
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E8E8E8] bg-white px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5">
         <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
-          <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "graphs" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "calendar" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="日常記録" title="日常記録" onClick={() => { setSelectedDate(today); setView("daily"); }} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "daily" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="宝物記録" title="宝物記録" onClick={() => { setSelectedDate(today); setTreasureDate(today); setEditingTreasureId(null); setView("treasures"); }} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasures" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasures" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="宝物一覧" title="宝物一覧" onClick={() => setView("treasure-list")} className={`flex min-w-0 items-center justify-center rounded-xl p-2.5 transition ${view === "treasure-list" ? "bg-transparent" : "bg-transparent"}`}><img src="/icons/treasure-list.svg" alt="" className={`h-6 w-6 object-contain ${view === "treasure-list" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/skinicon/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/skinicon/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="今日の記録" title="今日の記録" onClick={() => { setSelectedDate(today); setView("daily"); }} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="宝物一覧" title="宝物一覧" onClick={() => { setSelectedDate(today); setTreasureDate(today); setEditingTreasureId(null); setView("treasures"); }} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/icons/diamond.svg" alt="" className={`h-6 w-6 object-contain text-[#55585A] ${view === "treasures" || view === "treasure-list" ? "opacity-100" : "opacity-40"}`} /></button>
+          <button aria-label="キラキラ" title="キラキラ" onClick={() => { window.location.href = "/cosmetics"; }} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/skinicon/cosmetics.svg" alt="" className={`h-6 w-6 object-contain ${view === "sparkle" ? "opacity-100" : "opacity-40"}`} /></button>
         </div>
       </nav>
 
