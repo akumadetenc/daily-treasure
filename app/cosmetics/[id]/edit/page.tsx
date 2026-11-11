@@ -214,7 +214,7 @@ export default function EditProductPage() {
     setEffects((productData as Product & { effects?: string | null }).effects ?? "")
 
     const currentBrand = (brandResult.data ?? []).find(
-      (item) => item.name === productData.brand
+      (item: Brand) => item.name === productData.brand
     )
 
     setBrandId(currentBrand?.id ?? "")

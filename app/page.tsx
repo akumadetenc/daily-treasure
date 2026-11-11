@@ -27,7 +27,7 @@ type DailyRecord = {
 };
 type TreasureComment = { id: string; text: string; createdAt: string };
 type Treasure = { id: string; date: string; url: string; title: string; note: string; comments?: TreasureComment[]; thumbnail?: string; siteName?: string; category?: string; createdAt: string };
-type SkinDailyState = { acne: string; comedones: string; roughness: string; dryness: string; redness: string; overallScore: number };
+type SkinDailyState = SkinState;
 type TreatmentCalendarRecord = { id: string; treatment_date: string };
 type TreatmentCalendarItem = { treatment_record_id: string; treatment_id: string };
 type TreatmentCalendar = { id: string; name: string };
