@@ -20,6 +20,7 @@ const TABLES = [
 type TableName = (typeof TABLES)[number]
 
 const KEY_PREFIX = "takarabako-local-"
+const SEEDED_KEY = `${KEY_PREFIX}seeded-v1`
 const USER_KEY = `${KEY_PREFIX}user-id-v1`
 
 function storageKey(table: string) {
@@ -46,8 +47,17 @@ async function seedTable(table: TableName) {
   return rows
 }
 
-async function ensureTableSeeded(table: TableName) {
-  await seedTable(table)
+async function ensureSeeded() {
+  if (localStorage.getItem(SEEDED_KEY) === "1") return
+
+  await Promise.all(TABLES.map((table) => seedTable(table)))
+
+  const products = JSON.parse(localStorage.getItem(storageKey("skincare_products")) || "[]")
+  if (!localStorage.getItem(USER_KEY) && products[0]?.user_id) {
+    localStorage.setItem(USER_KEY, products[0].user_id)
+  }
+
+  localStorage.setItem(SEEDED_KEY, "1")
 }
 
 function readRows(table: string): Row[] {
@@ -227,7 +237,7 @@ class LocalQuery implements PromiseLike<Result> {
 
   private async execute(): Promise<Result> {
     try {
-      await ensureTableSeeded(this.table as TableName)
+      await ensureSeeded()
       const rows = readRows(this.table)
 
       if (this.action === "select") return this.finalize(rows)
@@ -291,7 +301,7 @@ export function createClient() {
   return {
     auth: {
       async getUser() {
-        await ensureTableSeeded("skincare_products")
+        await ensureSeeded()
         let id = localStorage.getItem(USER_KEY) ?? "local-user"
         if (!localStorage.getItem(USER_KEY)) {
           const products = readRows("skincare_products")
