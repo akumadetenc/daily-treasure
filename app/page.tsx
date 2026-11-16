@@ -821,7 +821,7 @@ export default function Home() {
                       <span>{day}</span>
                       <span className="mt-0 flex h-4 items-center justify-center gap-1 text-[11px] leading-none">
                         {records[date]?.condition && <img src={({"◎":"/icons/condition-calendar-best.svg","〇":"/icons/condition-calendar-good.svg","△":"/icons/condition-calendar-mid.svg","×":"/icons/condition-calendar-bad.svg"} as Record<string,string>)[records[date].condition]} alt={records[date].condition} className="h-3 w-3 object-contain" />}
-                        {daily && !(records[date]?.expenses || []).some((expense) => Number(String(expense.amount || "").replace(/,/g, "")) > 0) && <span className={isSelected ? "text-white" : "text-[#E9A16F]"}>✦</span>}
+                        {(records[date]?.expenses || []).some((expense) => Number(String(expense.amount || "").replace(/,/g, "")) > 0) && <span className={isSelected ? "text-white" : "text-[#E9A16F]"}>✦</span>}
                         {treasure && <span className={isSelected ? "text-[#DCE8EC]" : "text-[#8EAAB3]"}>✦</span>}
                       </span>
                     </button>
