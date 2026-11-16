@@ -12,20 +12,26 @@ const menus = [
   { href: "/cosmetics", label: "キラキラ", icon: "/skinicon/cosmetics.svg", view: "cosmetics" },
 ]
 
-function getViewFromLocation() {
-  if (typeof window === "undefined") return "daily"
-  return new URLSearchParams(window.location.search).get("view") || "daily"
-}
-
 export default function BottomNav() {
   const pathname = usePathname()
-  const [view, setView] = useState(getViewFromLocation)
+
+  // SSRとブラウザの初回描画を同じ状態にして、
+  // BottomNavのHydration mismatchを防ぐ。
+  const [view, setView] = useState<string | null>(null)
 
   useEffect(() => {
-    const syncView = () => setView(getViewFromLocation())
+    const syncView = () => {
+      setView(
+        new URLSearchParams(window.location.search).get("view") || "daily"
+      )
+    }
+
     syncView()
     window.addEventListener("popstate", syncView)
-    return () => window.removeEventListener("popstate", syncView)
+
+    return () => {
+      window.removeEventListener("popstate", syncView)
+    }
   }, [pathname])
 
   function handleMenuClick(menuView: string) {
@@ -37,14 +43,16 @@ export default function BottomNav() {
       <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
         {menus.map((menu) => {
           const active =
-            menu.label === "キラキラ"
-              ? pathname.startsWith("/cosmetics") || pathname.startsWith("/treatment")
+            menu.view === "cosmetics"
+              ? pathname.startsWith("/cosmetics") ||
+                pathname.startsWith("/treatment")
               : pathname === "/" && view === menu.view
 
           return (
             <Link
               key={menu.label}
               href={menu.href}
+              prefetch={false}
               aria-label={menu.label}
               title={menu.label}
               onClick={() => handleMenuClick(menu.view)}
@@ -53,7 +61,9 @@ export default function BottomNav() {
               <img
                 src={menu.icon}
                 alt=""
-                className={`h-6 w-6 object-contain ${active ? "opacity-100" : "opacity-40"}`}
+                className={`h-6 w-6 object-contain ${
+                  active ? "opacity-100" : "opacity-40"
+                }`}
               />
             </Link>
           )

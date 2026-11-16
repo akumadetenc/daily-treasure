@@ -2,12 +2,23 @@
 
 import BottomNav from "./components/BottomNav";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
-import SkinDailyRecord, { initialSkinState, type SkinState } from "./components/SkinDailyRecord";
-import TodaySkincare from "./components/TodaySkincare";
-import SkinGraph from "./components/SkinGraph";
-import { createClient } from "@/utils/supabase/client";
-import { createClient as createLocalClient } from "@/utils/localSupabase";
+import type { SkinState } from "./components/SkinDailyRecord";
+
+// 肌関連の重いUIは必要な画面でだけ読み込む。
+const SkinDailyRecord = dynamic(() => import("./components/SkinDailyRecord"), { ssr: false });
+const TodaySkincare = dynamic(() => import("./components/TodaySkincare"), { ssr: false });
+const SkinGraph = dynamic(() => import("./components/SkinGraph"), { ssr: false });
+
+const initialSkinState: SkinState = {
+  acne: "○",
+  comedones: "○",
+  roughness: "○",
+  dryness: "○",
+  redness: "○",
+  overallScore: 3,
+};
 
 type Expense = { id: string; category: string; amount: string; detail: string };
 type GraphCategory = "気分" | "体調" | "過ごし方" | "支出" | "肌記録";
@@ -31,10 +42,6 @@ type DailyRecord = {
 type TreasureComment = { id: string; text: string; createdAt: string };
 type Treasure = { id: string; date: string; url: string; title: string; note: string; comments?: TreasureComment[]; thumbnail?: string; siteName?: string; category?: string; createdAt: string };
 type SkinDailyState = SkinState;
-type TreatmentCalendarRecord = { id: string; treatment_date: string };
-type TreatmentCalendarItem = { treatment_record_id: string; treatment_id: string };
-type TreatmentCalendar = { id: string; name: string };
-type SkincareCalendarProduct = { id: string; name: string; brand: string | null };
 
 const DEFAULT_CATEGORIES = ["食費", "日用品", "美容", "交通費", "趣味", "交際費", "その他"];
 const MOODS = ["最高", "良い", "普通", "微妙", "つらい"];
@@ -150,16 +157,17 @@ export default function Home() {
   const [todaySkincareDraft, setTodaySkincareDraft] = useState<string[]>([]);
   const [localDataLoaded, setLocalDataLoaded] = useState(false);
   const initializedDailyDateRef = useRef<string | null>(null);
-  const [treatmentCalendarRecords, setTreatmentCalendarRecords] = useState<TreatmentCalendarRecord[]>([]);
-  const [treatmentCalendarItems, setTreatmentCalendarItems] = useState<TreatmentCalendarItem[]>([]);
-  const [treatmentCalendarList, setTreatmentCalendarList] = useState<TreatmentCalendar[]>([]);
-  const [skincareCalendarProducts, setSkincareCalendarProducts] = useState<SkincareCalendarProduct[]>([]);
 
   const graphMonth = monthDate ?? new Date(2026, 0, 1);
-  const monthRecordEntries = Object.entries(records).filter(([date]) => {
-    const [year, month] = date.split("-").map(Number);
-    return year === graphMonth.getFullYear() && month === graphMonth.getMonth() + 1;
-  });
+  const monthRecordEntries = useMemo(() => {
+    if (view !== "graphs") return [] as [string, DailyRecord][];
+    const targetYear = graphMonth.getFullYear();
+    const targetMonth = graphMonth.getMonth() + 1;
+    return Object.entries(records).filter(([date]) => {
+      const [year, month] = date.split("-").map(Number);
+      return year === targetYear && month === targetMonth;
+    });
+  }, [view, records, graphMonth]);
   const graphColors = graphCategory === "気分"
     ? ["#E85D5D", "#E89AB5", "#E7C85B", "#80B88A", "#A78BD4"]
     : graphCategory === "体調"
@@ -188,20 +196,29 @@ export default function Home() {
     values.filter(Boolean).forEach((value) => { counts[value] = (counts[value] || 0) + 1; });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }
-  const moodStats = countValues(monthRecordEntries.map(([, record]) => record.mood));
-  const conditionStats = countValues(monthRecordEntries.map(([, record]) => record.condition));
-  const activityStats = countValues(monthRecordEntries.map(([, record]) => record.activity));
-  const exerciseStats = countValues(monthRecordEntries.map(([, record]) => record.exercise || ""));
-  const bowelStats = countValues(monthRecordEntries.map(([, record]) => {
-    if (record.bowelCount == null) return "";
-    return record.bowelCount >= 4 ? "4以上" : String(record.bowelCount);
-  }));
-  const expenseTotals: Record<string, number> = {};
-  monthRecordEntries.forEach(([, record]) => (record.expenses || []).forEach((expense) => {
-    const amount = Number(String(expense.amount || "").replace(/,/g, ""));
-    if (Number.isFinite(amount) && amount > 0) expenseTotals[expense.category || "その他"] = (expenseTotals[expense.category || "その他"] || 0) + amount;
-  }));
-  const expenseStats = Object.entries(expenseTotals).sort((a, b) => b[1] - a[1]);
+  const { moodStats, conditionStats, activityStats, exerciseStats, bowelStats, expenseStats } = useMemo(() => {
+    if (view !== "graphs") {
+      return { moodStats: [], conditionStats: [], activityStats: [], exerciseStats: [], bowelStats: [], expenseStats: [] } as {
+        moodStats: [string, number][]; conditionStats: [string, number][]; activityStats: [string, number][];
+        exerciseStats: [string, number][]; bowelStats: [string, number][]; expenseStats: [string, number][];
+      };
+    }
+    const moodStats = countValues(monthRecordEntries.map(([, record]) => record.mood));
+    const conditionStats = countValues(monthRecordEntries.map(([, record]) => record.condition));
+    const activityStats = countValues(monthRecordEntries.map(([, record]) => record.activity));
+    const exerciseStats = countValues(monthRecordEntries.map(([, record]) => record.exercise || ""));
+    const bowelStats = countValues(monthRecordEntries.map(([, record]) => {
+      if (record.bowelCount == null) return "";
+      return record.bowelCount >= 4 ? "4以上" : String(record.bowelCount);
+    }));
+    const expenseTotals: Record<string, number> = {};
+    monthRecordEntries.forEach(([, record]) => (record.expenses || []).forEach((expense) => {
+      const amount = Number(String(expense.amount || "").replace(/,/g, ""));
+      if (Number.isFinite(amount) && amount > 0) expenseTotals[expense.category || "その他"] = (expenseTotals[expense.category || "その他"] || 0) + amount;
+    }));
+    const expenseStats = Object.entries(expenseTotals).sort((a, b) => b[1] - a[1]);
+    return { moodStats, conditionStats, activityStats, exerciseStats, bowelStats, expenseStats };
+  }, [view, monthRecordEntries]);
   function renderPie(stats: [string, number][]) {
     const total = stats.reduce((sum, item) => sum + item[1], 0);
     let current = 0;
@@ -287,42 +304,33 @@ export default function Home() {
 
   useEffect(() => {
     if (!today) return;
-    try {
-      const skinRaw = localStorage.getItem(SKIN_DAILY_KEY);
-      const skinParsed = skinRaw ? JSON.parse(skinRaw) : {};
-      if (skinParsed && typeof skinParsed === "object") setSkinDailyRecords(skinParsed);
-
-      const skincareRaw = localStorage.getItem(TODAY_SKINCARE_KEY);
-      const skincareParsed = skincareRaw ? JSON.parse(skincareRaw) : {};
-      if (skincareParsed && typeof skincareParsed === "object") setTodaySkincareRecords(skincareParsed);
-    } catch {
-      // 肌記録・スキンケア記録を読めない場合もカレンダーは利用できます。
+    if (view !== "daily") {
+      setLocalDataLoaded(false);
+      return;
     }
+
+    // 肌記録・今日使ったスキンケアは「今日の記録」でしか使わない。
+    // カレンダーや宝物一覧を開いたときに不要なデータまで読み込まない。
+    if (view === "daily") {
+      try {
+        const skinRaw = localStorage.getItem(SKIN_DAILY_KEY);
+        const skinParsed = skinRaw ? JSON.parse(skinRaw) : {};
+        if (skinParsed && typeof skinParsed === "object") setSkinDailyRecords(skinParsed);
+
+        const skincareRaw = localStorage.getItem(TODAY_SKINCARE_KEY);
+        const skincareParsed = skincareRaw ? JSON.parse(skincareRaw) : {};
+        if (skincareParsed && typeof skincareParsed === "object") setTodaySkincareRecords(skincareParsed);
+      } catch {
+        // 肌記録・スキンケア記録を読めない場合も今日の記録は利用できます。
+      }
+    }
+
     setLocalDataLoaded(true);
-
-    let cancelled = false;
-    async function loadCalendarSkinAndTreatment() {
-      const supabase = createClient();
-      const localSupabase = createLocalClient();
-      const [treatmentRecordsResult, treatmentItemsResult, treatmentListResult, productResult] = await Promise.all([
-        supabase.from("treatment_records").select("id, treatment_date").order("treatment_date"),
-        supabase.from("treatment_record_items").select("treatment_record_id, treatment_id"),
-        supabase.from("treatments").select("id, name").order("name"),
-        localSupabase.from("skincare_products").select("id, name, brand").order("name"),
-      ]);
-      if (cancelled) return;
-      if (!treatmentRecordsResult.error) setTreatmentCalendarRecords((treatmentRecordsResult.data || []) as TreatmentCalendarRecord[]);
-      if (!treatmentItemsResult.error) setTreatmentCalendarItems((treatmentItemsResult.data || []) as TreatmentCalendarItem[]);
-      if (!treatmentListResult.error) setTreatmentCalendarList((treatmentListResult.data || []) as TreatmentCalendar[]);
-      if (!productResult.error) setSkincareCalendarProducts((productResult.data || []) as SkincareCalendarProduct[]);
-    }
-    void loadCalendarSkinAndTreatment();
-    return () => { cancelled = true; };
   }, [today, view]);
 
   // 以前に保存したURLでタイトル・サムネイルが空の宝物も、表示時に補完する。
   useEffect(() => {
-    if (!today || treasures.length === 0) return;
+    if (!today || treasures.length === 0 || (view !== "treasure-list" && view !== "treasures")) return;
     const needsPreview = treasures.filter((item) => {
       if (!item.url) return false;
       const missingThumbnail = !item.thumbnail;
@@ -360,7 +368,7 @@ export default function Home() {
     }
     void enrichSavedTreasures();
     return () => { cancelled = true; };
-  }, [today, treasures]);
+  }, [today, treasures, view]);
 
   useEffect(() => {
     const raw = treasureUrl.trim();
@@ -662,34 +670,24 @@ export default function Home() {
   const sectionTitleClass = "mb-4 flex items-center justify-between gap-3 text-base font-semibold text-[#55585A]";
   const dailySectionClass = "rounded-xl border border-[#EEE7E1] bg-white p-2.5 shadow-sm shadow-[#E8E0D8]/20 sm:p-3";
   const dailySectionTitleClass = "mb-2 flex items-center justify-between gap-2 text-sm font-semibold text-[#55585A]";
-  function getSkinDailyRecord(date: string) {
-    return skinDailyRecords[date] || null;
-  }
-  function getSkincareNames(date: string) {
-    const ids = todaySkincareRecords[date] || [];
-    return skincareCalendarProducts.filter((product) => ids.includes(product.id));
-  }
-  function getTreatmentNames(date: string) {
-    const recordIds = treatmentCalendarRecords.filter((record) => record.treatment_date === date).map((record) => record.id);
-    const treatmentIds = treatmentCalendarItems.filter((item) => recordIds.includes(item.treatment_record_id)).map((item) => item.treatment_id);
-    return treatmentCalendarList.filter((treatment) => treatmentIds.includes(treatment.id));
-  }
-  function hasSkinDailyRecord(date: string) {
-    return !!getSkinDailyRecord(date);
-  }
-  function hasSkincareRecord(date: string) {
-    return (todaySkincareRecords[date] || []).length > 0;
-  }
-  function hasTreatmentRecord(date: string) {
-    return treatmentCalendarRecords.some((record) => record.treatment_date === date);
-  }
-
-  const selectedSkinDaily = getSkinDailyRecord(selectedDate);
-  const selectedSkincareNames = getSkincareNames(selectedDate);
-
-  const selectedTreatmentNames = getTreatmentNames(selectedDate);
-
-  const selectedTreasures = treasures.filter((item) => item.date === selectedDate);
+  const selectedTreasures = useMemo(
+    () => selectedDate ? treasures.filter((item) => item.date === selectedDate) : [],
+    [treasures, selectedDate]
+  );
+  const filteredTreasures = useMemo(() => {
+    const search = treasureSearch.trim().toLowerCase();
+    return treasures
+      .filter((item) => {
+        if (listCategory !== "すべて" && (item.category || "その他") !== listCategory) return false;
+        if (!search) return true;
+        return [
+          item.title, item.url, item.note, item.siteName, item.category,
+          ...(item.comments || []).map((comment) => comment.text),
+        ].some((value) => (value || "").toLowerCase().includes(search));
+      })
+      .slice()
+      .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  }, [treasures, listCategory, treasureSearch]);
   const selectedDayExpenseTotal = (records[selectedDate]?.expenses || []).reduce((sum, expense) => {
     const amount = Number(String(expense.amount || "").replace(/,/g, ""));
     return sum + (Number.isFinite(amount) && amount > 0 ? amount : 0);
@@ -802,11 +800,8 @@ export default function Home() {
                       <span>{day}</span>
                       <span className="mt-0 flex h-4 items-center justify-center gap-1 text-[11px] leading-none">
                         {records[date]?.condition && <img src={({"◎":"/icons/condition-calendar-best.svg","〇":"/icons/condition-calendar-good.svg","△":"/icons/condition-calendar-mid.svg","×":"/icons/condition-calendar-bad.svg"} as Record<string,string>)[records[date].condition]} alt={records[date].condition} className="h-3 w-3 object-contain" />}
-                        {daily && !(records[date]?.expenses || []).some((expense) => Number(String(expense.amount || "").replace(/,/g, "")) > 0) && <span className={isSelected ? "text-white" : "text-[#E9A16F]"}>✦</span>}
+                        {(records[date]?.expenses || []).some((expense) => Number(String(expense.amount || "").replace(/,/g, "")) > 0) && <span className={isSelected ? "text-white" : "text-[#E9A16F]"}>✦</span>}
                         {treasure && <span className={isSelected ? "text-[#DCE8EC]" : "text-[#8EAAB3]"}>✦</span>}
-                        {hasSkinDailyRecord(date) && <span className={isSelected ? "text-white" : "text-[#A8C6D1]"}>●</span>}
-                        {hasSkincareRecord(date) && <span className={isSelected ? "text-white" : "text-[#8FB5C2]"}>●</span>}
-                        {hasTreatmentRecord(date) && <span className={isSelected ? "text-white" : "text-[#A78BD4]"}>●</span>}
                       </span>
                     </button>
                   );
@@ -839,42 +834,6 @@ export default function Home() {
               ) : <p className="text-sm text-[#999999]">この日の記録はまだありません。</p>}
             </section>
 
-            {(selectedSkinDaily || selectedSkincareNames.length > 0 || selectedTreatmentNames.length > 0) && (
-              <section className={sectionClass}>
-                <h3 className={sectionTitleClass}><span>肌の記録</span>{selectedSkinDaily && <span className="text-xs font-normal text-[#9AA8AD]">総合点 {selectedSkinDaily.overallScore}</span>}</h3>
-                {selectedSkinDaily && <div className="grid grid-cols-5 gap-2">
-                  {[
-                    ["ニキビ", selectedSkinDaily.acne],
-                    ["毛穴", selectedSkinDaily.comedones],
-                    ["ざらつき", selectedSkinDaily.roughness],
-                    ["乾燥", selectedSkinDaily.dryness],
-                    ["赤み", selectedSkinDaily.redness],
-                  ].map(([label, value]) => (
-                    <div key={label} className="rounded-xl bg-[#F8FCFD] px-2 py-2 text-center">
-                      <p className="text-[11px] text-[#9AA8AD]">{label}</p>
-                      <p className="mt-1 text-base font-bold text-[#5D727A]">{value}</p>
-                    </div>
-                  ))}
-                </div>}
-                {selectedSkincareNames.length > 0 && <div className="mt-3 space-y-2">
-                  <p className="text-xs font-semibold text-[#9AA8AD]">今日使ったスキンケア</p>
-                  {selectedSkincareNames.map((product) => (
-                    <div key={product.id} className="rounded-xl bg-[#F8FCFD] px-3 py-2">
-                      <p className="text-sm font-semibold text-[#65777D]">{product.name}</p>
-                      {product.brand && <p className="mt-0.5 text-xs text-[#9AA8AD]">{product.brand}</p>}
-                    </div>
-                  ))}
-                </div>}
-                {selectedTreatmentNames.length > 0 && <div className="mt-3">
-                  <p className="mb-2 text-xs font-semibold text-[#9AA8AD]">施術</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedTreatmentNames.map((treatment) => (
-                      <span key={treatment.id} className="rounded-full bg-[#F2ECFA] px-3 py-1.5 text-sm font-semibold text-[#8065A5]">{treatment.name}</span>
-                    ))}
-                  </div>
-                </div>}
-              </section>
-            )}
 
             <section className={sectionClass}>
               <h3 className={sectionTitleClass}><span>宝物</span><span className="text-xs font-normal text-[#999999]">{selectedTreasures.length}件</span></h3>
@@ -1043,9 +1002,9 @@ export default function Home() {
         {today && selectedDate && view === "treasure-list" && (
           <div className="space-y-3">
             <section className="space-y-3 rounded-2xl border border-[#EEE7E1] bg-white p-3 shadow-sm shadow-[#E8E0D8]/30">
-              {treasures.filter((item) => (listCategory === "すべて" || (item.category || "その他") === listCategory) && (!treasureSearch.trim() || [item.title, item.url, item.note, item.siteName, item.category, ...(item.comments || []).map((comment) => comment.text)].some((value) => (value || "").toLowerCase().includes(treasureSearch.trim().toLowerCase())))).length ? (
+              {filteredTreasures.length ? (
                 <div className="space-y-3">
-                  {treasures.filter((item) => (listCategory === "すべて" || (item.category || "その他") === listCategory) && (!treasureSearch.trim() || [item.title, item.url, item.note, item.siteName, item.category, ...(item.comments || []).map((comment) => comment.text)].some((value) => (value || "").toLowerCase().includes(treasureSearch.trim().toLowerCase())))).slice().sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)).map((item) => (
+                  {filteredTreasures.map((item) => (
                     <article key={item.id} className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
                       {item.thumbnail && <a href={item.url || undefined} target="_blank" rel="noreferrer" className="block bg-white"><img src={item.thumbnail} alt="" loading="lazy" className={item.category === "漫画" ? "mx-auto aspect-[3/4] max-h-[360px] w-auto max-w-full object-contain" : "aspect-video w-full object-cover"} onError={(event) => { event.currentTarget.style.display = "none"; }} /></a>}
                       <div className="p-3">
