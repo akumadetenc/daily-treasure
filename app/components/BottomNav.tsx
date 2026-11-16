@@ -39,10 +39,16 @@ export default function BottomNav() {
     // ルート内のメニューはNext.jsのページ遷移を使わず、
     // 同じ画面のviewだけを即時切り替える。これで連続タップ時の
     // ルート再評価や遷移待ちを避け、v50の画面構成を維持する。
-    if (pathname === "/" && href.startsWith("/?view=")) {
+    if (pathname === "/" && (href === "/" || href.startsWith("/?view="))) {
       event.preventDefault()
       const url = new URL(window.location.href)
-      url.searchParams.set("view", menuView)
+
+      if (menuView === "daily") {
+        url.searchParams.delete("view")
+      } else {
+        url.searchParams.set("view", menuView)
+      }
+
       window.history.pushState({}, "", url.toString())
       setView(menuView)
       window.dispatchEvent(new CustomEvent("takarabako-view-change", { detail: menuView }))
