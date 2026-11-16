@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { createClient } from "@/utils/supabase/client"
+import { createClient } from "@/utils/localSupabase"
 import BottomNav from "../components/BottomNav"
 
 type ProductStatus = "未使用" | "使用中" | "使用済"
@@ -34,6 +34,8 @@ type Product = {
   impression: string | null
   use_morning: boolean
   use_night: boolean
+  default_morning: boolean
+  default_night: boolean
 }
 
 type Effect = { id: string; name: string }
@@ -101,6 +103,13 @@ export default function CosmeticsPage() {
   const [repeatStatus, setRepeatStatus] = useState<RepeatStatus | null>(null)
   const [impression, setImpression] = useState("")
   const [savingFinish, setSavingFinish] = useState(false)
+  const [returnToDaily, setReturnToDaily] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("status") === "未使用") setStatusFilter("未使用")
+    if (params.get("return") === "daily") setReturnToDaily(true)
+  }, [])
 
   useEffect(() => {
     loadData()
@@ -130,7 +139,7 @@ export default function CosmeticsPage() {
       supabase
         .from("skincare_products")
         .select(
-          "id, name, brand, product_url, category_id, status, stock_count, started_at, finished_at, rating, repeat_status, impression, use_morning, use_night"
+          "id, name, brand, product_url, category_id, status, stock_count, started_at, finished_at, rating, repeat_status, impression, use_morning, use_night, default_morning, default_night"
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false }),
@@ -364,8 +373,8 @@ export default function CosmeticsPage() {
 
   function openStart(product: Product) {
     setStartProduct(product)
-    setStartMorning(false)
-    setStartNight(false)
+    setStartMorning(Boolean(product.use_morning && product.default_morning))
+    setStartNight(Boolean(product.use_night && product.default_night))
   }
 
   function closeStart() {
@@ -395,6 +404,8 @@ export default function CosmeticsPage() {
         impression: null,
         use_morning: startMorning,
         use_night: startNight,
+        default_morning: startMorning && Boolean(startProduct.default_morning),
+        default_night: startNight && Boolean(startProduct.default_night),
       })
       .eq("id", startProduct.id)
 
@@ -419,12 +430,33 @@ export default function CosmeticsPage() {
               impression: null,
               use_morning: startMorning,
               use_night: startNight,
+              default_morning: startMorning && Boolean(startProduct.default_morning),
+              default_night: startNight && Boolean(startProduct.default_night),
             }
           : item
       )
     )
 
     setSavingStart(false)
+
+    if (returnToDaily) {
+      try {
+        const rawDraft = localStorage.getItem("takarabako-daily-draft-v1")
+        const draft = rawDraft ? JSON.parse(rawDraft) : {}
+        const currentSelected = Array.isArray(draft.todaySkincareDraft)
+          ? draft.todaySkincareDraft
+          : []
+        if (!currentSelected.includes(startProduct.id)) {
+          draft.todaySkincareDraft = [...currentSelected, startProduct.id]
+        }
+        localStorage.setItem("takarabako-daily-draft-v1", JSON.stringify(draft))
+      } catch {
+        // 下書きを更新できなくても、通常の使用開始処理は完了しています。
+      }
+      window.location.href = "/?view=daily"
+      return
+    }
+
     setStartProduct(null)
     setStartMorning(false)
     setStartNight(false)
@@ -638,7 +670,17 @@ export default function CosmeticsPage() {
             <header className="border-b border-[#DFE9EC] pb-2 pt-[calc(env(safe-area-inset-top)+4px)]">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
+                  {returnToDaily ? (
+                  <button
+                    type="button"
+                    onClick={() => { window.location.href = "/?view=daily" }}
+                    className="shrink-0 text-xs font-medium text-[#647F89]"
+                  >
+                    ← 今日の記録に戻る
+                  </button>
+                ) : (
                   <Link href="/cosmetics/settings" className="shrink-0 text-xs font-medium text-[#647F89]">カテゴリ設定</Link>
+                )}
                   <Link href="/skincare" className="shrink-0 rounded-full bg-[#A8C6D1] px-3 py-1.5 text-xs font-bold text-white">＋追加</Link>
                 </div>
                 <Link href="/treatment" className="shrink-0 rounded-full border border-[#D6E6EA] bg-white px-3 py-1.5 text-xs font-semibold text-[#647F89]">施術</Link>
@@ -915,6 +957,36 @@ export default function CosmeticsPage() {
                 >
                   夜
                 </button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {startMorning && (
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={startProduct.default_morning}
+                      onChange={(event) => {
+                        const checked = event.target.checked
+                        setStartProduct((current) => current ? { ...current, default_morning: checked } : current)
+                      }}
+                      className="h-4 w-4 accent-[#A8C6D1]"
+                    />
+                    朝の記録でデフォルトチェックする
+                  </label>
+                )}
+                {startNight && (
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={startProduct.default_night}
+                      onChange={(event) => {
+                        const checked = event.target.checked
+                        setStartProduct((current) => current ? { ...current, default_night: checked } : current)
+                      }}
+                      className="h-4 w-4 accent-[#A8C6D1]"
+                    />
+                    夜の記録でデフォルトチェックする
+                  </label>
+                )}
               </div>
             </div>
 

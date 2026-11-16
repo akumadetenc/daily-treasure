@@ -2,7 +2,7 @@
 
 import BottomNav from "../components/BottomNav"
 import { useEffect, useState } from "react"
-import { createClient } from "@/utils/supabase/client"
+import { createClient } from "@/utils/localSupabase"
 
 type Category = {
   id: string

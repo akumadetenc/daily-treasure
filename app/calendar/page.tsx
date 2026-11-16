@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createClient } from "@/utils/supabase/client"
+import { createClient as createLocalClient } from "@/utils/localSupabase"
 import BottomNav from "../components/BottomNav"
 
 type DailyRecord = {
@@ -58,6 +59,7 @@ type Product = {
 
 export default function CalendarPage() {
   const supabase = createClient()
+  const localSupabase = createLocalClient()
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [records, setRecords] = useState<DailyRecord[]>([])
@@ -127,7 +129,7 @@ export default function CalendarPage() {
       skincareResult,
       productResult,
     ] = await Promise.all([
-      supabase
+      localSupabase
         .from("daily_records")
         .select(
           "id, record_date, overall_score, bowel_count, stool_consistency, acne, comedones, roughness, dryness, redness, exercise, menstrual_status, memo"
@@ -155,11 +157,11 @@ export default function CalendarPage() {
         .eq("user_id", user.id)
         .order("name"),
 
-      supabase
+      localSupabase
         .from("daily_skincare")
         .select("daily_record_id, product_id"),
 
-      supabase
+      localSupabase
         .from("skincare_products")
         .select("id, name, brand")
         .eq("user_id", user.id),

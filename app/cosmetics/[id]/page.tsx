@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/utils/supabase/client"
+import { createClient } from "@/utils/localSupabase"
 import BottomNav from "../../components/BottomNav"
 
 type ProductStatus = "未使用" | "使用中" | "使用済"

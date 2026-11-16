@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SkinDailyRecord, { initialSkinState, type SkinState } from "./components/SkinDailyRecord";
 import TodaySkincare from "./components/TodaySkincare";
 import SkinGraph from "./components/SkinGraph";
 import { createClient } from "@/utils/supabase/client";
+import { createClient as createLocalClient } from "@/utils/localSupabase";
 
 type Expense = { id: string; category: string; amount: string; detail: string };
 type GraphCategory = "気分" | "体調" | "過ごし方" | "支出" | "肌記録";
@@ -48,6 +49,7 @@ const TREASURE_CATEGORIES_KEY = "daily-treasure-treasure-categories-v1";
 const CATEGORY_RULES_KEY = "daily-treasure-category-rules-v1";
 const SKIN_DAILY_KEY = "takarabako-skin-daily-v1";
 const TODAY_SKINCARE_KEY = "takarabako-today-skincare-v1";
+const DAILY_DRAFT_KEY = "takarabako-daily-draft-v1";
 const DEFAULT_TREASURE_CATEGORIES = ["動画", "漫画", "Webページ", "商品", "食べ物", "旅行", "写真", "メモ", "その他"];
 const DEFAULT_CATEGORY_RULES: Record<string, string> = {
   "動画": "youtube.com, youtu.be, nicovideo.jp, tiktok.com",
@@ -144,6 +146,8 @@ export default function Home() {
   const [todaySkincareRecords, setTodaySkincareRecords] = useState<Record<string, string[]>>({});
   const [skinDailyDraft, setSkinDailyDraft] = useState<SkinState>(initialSkinState);
   const [todaySkincareDraft, setTodaySkincareDraft] = useState<string[]>([]);
+  const [localDataLoaded, setLocalDataLoaded] = useState(false);
+  const initializedDailyDateRef = useRef<string | null>(null);
   const [treatmentCalendarRecords, setTreatmentCalendarRecords] = useState<TreatmentCalendarRecord[]>([]);
   const [treatmentCalendarItems, setTreatmentCalendarItems] = useState<TreatmentCalendarItem[]>([]);
   const [treatmentCalendarList, setTreatmentCalendarList] = useState<TreatmentCalendar[]>([]);
@@ -292,15 +296,17 @@ export default function Home() {
     } catch {
       // 肌記録・スキンケア記録を読めない場合もカレンダーは利用できます。
     }
+    setLocalDataLoaded(true);
 
     let cancelled = false;
     async function loadCalendarSkinAndTreatment() {
       const supabase = createClient();
+      const localSupabase = createLocalClient();
       const [treatmentRecordsResult, treatmentItemsResult, treatmentListResult, productResult] = await Promise.all([
         supabase.from("treatment_records").select("id, treatment_date").order("treatment_date"),
         supabase.from("treatment_record_items").select("treatment_record_id, treatment_id"),
         supabase.from("treatments").select("id, name").order("name"),
-        supabase.from("skincare_products").select("id, name, brand").order("name"),
+        localSupabase.from("skincare_products").select("id, name, brand").order("name"),
       ]);
       if (cancelled) return;
       if (!treatmentRecordsResult.error) setTreatmentCalendarRecords((treatmentRecordsResult.data || []) as TreatmentCalendarRecord[]);
@@ -406,23 +412,54 @@ export default function Home() {
   }, [treasureUrl, treasureCategories, categoryRules]);
 
   useEffect(() => {
-    if (!selectedDate) return;
+    if (!selectedDate || !localDataLoaded) return;
+    if (initializedDailyDateRef.current === selectedDate) return;
+    initializedDailyDateRef.current = selectedDate;
+
+    let draft: { selectedDate?: string; mood?: string; activity?: string; condition?: string; breakfast?: string; lunch?: string; dinner?: string; snack?: string; expenses?: Expense[]; memo?: string; tomorrowTodo?: string; bowelCount?: string; bowelSoftness?: string; exercise?: string; periodStatus?: string; skinDailyDraft?: SkinState; todaySkincareDraft?: string[] } | null = null;
+
+    try {
+      const rawDraft = localStorage.getItem(DAILY_DRAFT_KEY);
+      if (rawDraft) {
+        const parsed = JSON.parse(rawDraft);
+        if (parsed?.selectedDate === selectedDate) {
+          draft = parsed;
+          localStorage.removeItem(DAILY_DRAFT_KEY);
+        }
+      }
+    } catch {
+      // 下書きを読み込めない場合は通常の保存済みデータを使います。
+    }
+
     const record = records[selectedDate];
-    setMood(record?.mood ?? "");
-    setActivity(record?.activity ?? "");
-    setCondition(record?.condition ?? "");
-    setBreakfast(record?.breakfast ?? "");
-    setLunch(record?.lunch ?? "");
-    setDinner(record?.dinner ?? "");
-    setSnack(record?.snack ?? "");
-    setExpenses(record?.expenses?.length ? record.expenses : [{ id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
-    setMemo(record?.memo ?? "");
-    setTomorrowTodo(record?.tomorrowTodo ?? "");
-    setBowelCount(record?.bowelCount != null ? String(record.bowelCount) : "0");
-    setBowelSoftness(record?.bowelSoftness ?? "");
-    setExercise(record?.exercise ?? "");
-    setPeriodStatus(record?.periodStatus ?? "");
-  }, [selectedDate, records, categories]);
+    setMood(draft?.mood ?? record?.mood ?? "");
+    setActivity(draft?.activity ?? record?.activity ?? "");
+    setCondition(draft?.condition ?? record?.condition ?? "");
+    setBreakfast(draft?.breakfast ?? record?.breakfast ?? "");
+    setLunch(draft?.lunch ?? record?.lunch ?? "");
+    setDinner(draft?.dinner ?? record?.dinner ?? "");
+    setSnack(draft?.snack ?? record?.snack ?? "");
+    setExpenses(draft?.expenses?.length ? draft.expenses : record?.expenses?.length ? record.expenses : [{ id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
+    setMemo(draft?.memo ?? record?.memo ?? "");
+    setTomorrowTodo(draft?.tomorrowTodo ?? record?.tomorrowTodo ?? "");
+    setBowelCount(draft?.bowelCount ?? (record?.bowelCount != null ? String(record.bowelCount) : "0"));
+    setBowelSoftness(draft?.bowelSoftness ?? record?.bowelSoftness ?? "");
+    setExercise(draft?.exercise ?? record?.exercise ?? "");
+    setPeriodStatus(draft?.periodStatus ?? record?.periodStatus ?? "");
+
+    if (draft?.skinDailyDraft) {
+      setSkinDailyDraft({ ...initialSkinState, ...draft.skinDailyDraft });
+    } else {
+      const savedSkin = skinDailyRecords[selectedDate];
+      setSkinDailyDraft(savedSkin ? { ...initialSkinState, ...savedSkin } : initialSkinState);
+    }
+
+    if (draft?.todaySkincareDraft) {
+      setTodaySkincareDraft(draft.todaySkincareDraft);
+    } else {
+      setTodaySkincareDraft(todaySkincareRecords[selectedDate] || []);
+    }
+  }, [selectedDate, localDataLoaded]);
 
   const totalExpense = useMemo(
     () => expenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0),
@@ -455,6 +492,30 @@ export default function Home() {
     localStorage.setItem(TODAY_SKINCARE_KEY, JSON.stringify(nextTodaySkincare));
     setSavedMessage("保存しました");
     window.setTimeout(() => setSavedMessage(""), 2400);
+  }
+
+  function openUnusedProducts() {
+    const draft = {
+      selectedDate,
+      mood,
+      activity,
+      condition,
+      breakfast,
+      lunch,
+      dinner,
+      snack,
+      expenses,
+      memo,
+      tomorrowTodo,
+      bowelCount,
+      bowelSoftness,
+      exercise,
+      periodStatus,
+      skinDailyDraft,
+      todaySkincareDraft,
+    };
+    localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(draft));
+    window.location.href = "/cosmetics?status=未使用&return=daily";
   }
   function addExpense() {
     setExpenses((current) => [...current, { id: makeId(), category: categories[0] ?? "その他", amount: "", detail: "" }]);
@@ -597,6 +658,8 @@ export default function Home() {
   const inputClass = "w-full min-w-0 rounded-xl border border-[#F0DED0] bg-white px-3 py-3 text-base text-[#55585A] outline-none transition placeholder:text-[#A8A8A8] focus:border-[#E9A16F] focus:ring-2 focus:ring-[#FBE9DB]";
   const sectionClass = "rounded-2xl border border-[#EEE7E1] bg-white p-4 shadow-sm shadow-[#E8E0D8]/30 sm:p-5";
   const sectionTitleClass = "mb-4 flex items-center justify-between gap-3 text-base font-semibold text-[#55585A]";
+  const dailySectionClass = "rounded-xl border border-[#EEE7E1] bg-white p-2.5 shadow-sm shadow-[#E8E0D8]/20 sm:p-3";
+  const dailySectionTitleClass = "mb-2 flex items-center justify-between gap-2 text-sm font-semibold text-[#55585A]";
   function getSkinDailyRecord(date: string) {
     return skinDailyRecords[date] || null;
   }
@@ -622,10 +685,6 @@ export default function Home() {
   const selectedSkinDaily = getSkinDailyRecord(selectedDate);
   const selectedSkincareNames = getSkincareNames(selectedDate);
 
-  useEffect(() => {
-    setSkinDailyDraft(selectedSkinDaily ? { ...initialSkinState, ...selectedSkinDaily } : initialSkinState);
-    setTodaySkincareDraft(todaySkincareRecords[selectedDate] || []);
-  }, [selectedDate, selectedSkinDaily, todaySkincareRecords]);
   const selectedTreatmentNames = getTreatmentNames(selectedDate);
 
   const selectedTreasures = treasures.filter((item) => item.date === selectedDate);
@@ -839,50 +898,50 @@ export default function Home() {
         )}
 
         {today && selectedDate && view === "daily" && (
-          <div className="space-y-3">
-            <section className={sectionClass}>
+          <div className="space-y-1.5">
+            <section className={dailySectionClass}>
               <label htmlFor="daily-record-date" className="mb-2 block text-sm font-semibold text-[#55585A]">記録する日付</label>
               <input id="daily-record-date" aria-label="記録する日付" type="date" value={selectedDate} max={today} onChange={(event) => { if (event.target.value) setSelectedDate(event.target.value); }} className={`${inputClass} box-border max-w-full appearance-none`} style={{ width: "100%" }} />
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>気分</h2>
-              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-                {MOODS.map((option, index) => <button key={option} type="button" onClick={() => setMood(mood === option ? "" : option)} aria-pressed={mood === option} className={`flex min-w-0 flex-col items-center justify-center rounded-xl border p-1.5 transition sm:p-2 ${mood === option ? "border-[#E9A16F] bg-[#FBE9DB] ring-2 ring-[#F4D2B8]" : "border-[#EEE7E1] bg-[#FFFCF9] hover:bg-[#FFF3EA]"}`}><img src={CAT_IMAGES[index]} alt={option} className="h-12 w-12 object-contain sm:h-14 sm:w-14" /></button>)}
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>気分</h2>
+              <div className="grid grid-cols-5 gap-1">
+                {MOODS.map((option, index) => <button key={option} type="button" onClick={() => setMood(mood === option ? "" : option)} aria-pressed={mood === option} className={`flex min-w-0 flex-col items-center justify-center rounded-lg border p-1 transition ${mood === option ? "border-[#E9A16F] bg-[#FBE9DB] ring-2 ring-[#F4D2B8]" : "border-[#EEE7E1] bg-[#FFFCF9] hover:bg-[#FFF3EA]"}`}><img src={CAT_IMAGES[index]} alt={option} className="h-10 w-10 object-contain sm:h-11 sm:w-11" /></button>)}
               </div>
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>過ごし方</h2>
-              <div className="grid grid-cols-4 gap-2">
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>過ごし方</h2>
+              <div className="grid grid-cols-4 gap-1.5">
                 {ACTIVITIES.map((option) => {
                   const activityIcons: Record<string, string> = { "労働": "/icons/work.svg", "外出": "/icons/outing.svg", "イベント": "/icons/event.svg", "まったり": "/icons/relax.svg" };
-                  return <button key={option} type="button" onClick={() => setActivity(activity === option ? "" : option)} className={`flex flex-col items-center justify-center gap-2 rounded-xl border px-3 py-3 text-sm transition ${activity === option ? "border-[#E9A16F] bg-[#FBE9DB] font-semibold text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#62666A] hover:bg-[#FFF3EA]"}`}><img src={activityIcons[option]} alt={option} className="h-9 w-9 object-contain" /></button>;
+                  return <button key={option} type="button" onClick={() => setActivity(activity === option ? "" : option)} className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-xs transition ${activity === option ? "border-[#E9A16F] bg-[#FBE9DB] font-semibold text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#62666A] hover:bg-[#FFF3EA]"}`}><img src={activityIcons[option]} alt={option} className="h-7 w-7 object-contain" /></button>;
                 })}
               </div>
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>体調</h2>
-              <div className="grid grid-cols-4 gap-2">
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>体調</h2>
+              <div className="grid grid-cols-4 gap-1.5">
                 {CONDITION_OPTIONS.map((option) => {
                   const conditionIcons: Record<string, string> = { "◎": "/icons/condition-best.svg", "〇": "/icons/condition-good.svg", "△": "/icons/condition-mid.svg", "×": "/icons/condition-bad.svg" };
-                  return <button key={option} type="button" aria-label={`体調 ${option}`} onClick={() => setCondition(condition === option ? "" : option)} className={`flex items-center justify-center rounded-xl border p-2 transition ${condition === option ? "border-[#E9A16F] bg-[#FBE9DB] ring-2 ring-[#F4D2B8]" : "border-[#EEE7E1] bg-[#FFFCF9] hover:bg-[#FFF3EA]"}`}><img src={conditionIcons[option]} alt={option} className="h-9 w-9 object-contain" /></button>;
+                  return <button key={option} type="button" aria-label={`体調 ${option}`} onClick={() => setCondition(condition === option ? "" : option)} className={`flex items-center justify-center rounded-lg border p-1.5 transition ${condition === option ? "border-[#E9A16F] bg-[#FBE9DB] ring-2 ring-[#F4D2B8]" : "border-[#EEE7E1] bg-[#FFFCF9] hover:bg-[#FFF3EA]"}`}><img src={conditionIcons[option]} alt={option} className="h-7 w-7 object-contain" /></button>;
                 })}
               </div>
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>お通じ</h2>
-              <div className="space-y-3">
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>お通じ</h2>
+              <div className="space-y-2">
                 <div>
-                  <p className="mb-2 text-sm font-semibold text-[#55585A]">回数</p>
-                  <div className="grid grid-cols-5 gap-1.5">
+                  
+                  <div className="grid grid-cols-5 gap-1">
                     {["0", "1", "2", "3", "4以上"].map((option) => (
-                      <button key={option} type="button" onClick={() => { const next = option === "4以上" ? "4" : option; setBowelCount(next); if (next === "0") setBowelSoftness(""); }} className={`rounded-lg border py-2 text-sm font-semibold ${bowelCount === (option === "4以上" ? "4" : option) ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                      <button key={option} type="button" onClick={() => { const next = option === "4以上" ? "4" : option; setBowelCount(next); if (next === "0") setBowelSoftness(""); }} className={`rounded-lg border py-1.5 text-xs font-semibold ${bowelCount === (option === "4以上" ? "4" : option) ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
                     ))}
                   </div>
                 </div>
                 {Number(bowelCount) >= 1 && (
                   <div>
-                    <p className="mb-2 text-sm font-semibold text-[#55585A]">柔らかさ</p>
-                    <div className="grid grid-cols-5 gap-1.5">
+                    <p className="mb-1.5 text-xs font-semibold text-[#55585A]">柔らかさ</p>
+                    <div className="grid grid-cols-5 gap-1">
                       {["硬硬", "硬", "普通", "柔", "柔柔"].map((option) => (
                         <button key={option} type="button" onClick={() => setBowelSoftness(bowelSoftness === option ? "" : option)} className={`rounded-lg border px-1 py-2 text-xs font-semibold ${bowelSoftness === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
                       ))}
@@ -891,26 +950,24 @@ export default function Home() {
                 )}
               </div>
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>運動</h2>
-              <div className="grid grid-cols-3 gap-2">
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>運動</h2>
+              <div className="grid grid-cols-3 gap-1.5">
                 {["○", "△", "×"].map((option) => (
-                  <button key={option} type="button" onClick={() => setExercise(exercise === option ? "" : option)} className={`rounded-xl border py-3 text-base font-bold ${exercise === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                  <button key={option} type="button" onClick={() => setExercise(exercise === option ? "" : option)} className={`rounded-lg border py-2 text-sm font-bold ${exercise === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
                 ))}
               </div>
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>生理</h2>
-              <div className="grid grid-cols-3 gap-2">
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>生理</h2>
+              <div className="grid grid-cols-3 gap-1.5">
                 {["ピル", "休薬", "生理中"].map((option) => (
-                  <button key={option} type="button" onClick={() => setPeriodStatus(periodStatus === option ? "" : option)} className={`rounded-xl border py-3 text-sm font-semibold ${periodStatus === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
+                  <button key={option} type="button" onClick={() => setPeriodStatus(periodStatus === option ? "" : option)} className={`rounded-lg border py-2 text-xs font-semibold ${periodStatus === option ? "border-[#E9A16F] bg-[#FBE9DB] text-[#D9874F]" : "border-[#EEE7E1] bg-[#FFFCF9] text-[#777B7E]"}`}>{option}</button>
                 ))}
               </div>
             </section>
-            <SkinDailyRecord state={skinDailyDraft} onChange={setSkinDailyDraft} />
-            <TodaySkincare selected={todaySkincareDraft} onChange={setTodaySkincareDraft} />
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>ごはん</h2>
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>ごはん</h2>
               <div className="space-y-2">
                 <input aria-label="朝ごはん" value={breakfast} onChange={(event) => setBreakfast(event.target.value)} placeholder="朝ごはん" className={inputClass} />
                 <input aria-label="昼ごはん" value={lunch} onChange={(event) => setLunch(event.target.value)} placeholder="昼ごはん" className={inputClass} />
@@ -918,8 +975,8 @@ export default function Home() {
                 <input aria-label="おやつ" value={snack} onChange={(event) => setSnack(event.target.value)} placeholder="おやつ" className={inputClass} />
               </div>
             </section>
-            <section className={sectionClass}>
-              <div className={sectionTitleClass}><h2>支出</h2><button type="button" onClick={() => setCategoryEditorOpen(true)} className="rounded-full border border-[#F0D7C4] bg-[#FFF8F1] px-3 py-2 text-xs font-medium text-[#D9874F]">カテゴリを編集</button></div>
+            <section className={dailySectionClass}>
+              <div className={dailySectionTitleClass}><h2>支出</h2><button type="button" onClick={() => setCategoryEditorOpen(true)} className="rounded-full border border-[#F0D7C4] bg-[#FFF8F1] px-3 py-2 text-xs font-medium text-[#D9874F]">カテゴリを編集</button></div>
               <div className="space-y-2">
                 {expenses.map((expense, index) => <div key={expense.id} className="rounded-xl bg-[#FFFAF6] p-2.5">
                   <div className="mb-2 flex justify-end">{expenses.length > 1 && <button type="button" onClick={() => removeExpense(expense.id)} className="px-1 text-xs text-[#999999]">削除</button>}</div>
@@ -933,15 +990,23 @@ export default function Home() {
               <button type="button" onClick={addExpense} className="mt-3 w-full rounded-xl border border-dashed border-[#E9B995] bg-[#FFFCF9] py-3 text-sm font-medium text-[#D9874F]">＋ 支出を追加</button>
               <div className="mt-3 flex items-center justify-between rounded-xl bg-[#FBE9DB] px-4 py-3"><span className="text-sm font-medium text-[#777B7E]">合計</span><span className="text-xl font-bold tabular-nums text-[#D9874F]">{totalExpense.toLocaleString("ja-JP")}<span className="ml-1 text-sm font-medium">円</span></span></div>
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>今日のメモ</h2>
+            <SkinDailyRecord state={skinDailyDraft} onChange={setSkinDailyDraft} />
+            <TodaySkincare
+              selected={todaySkincareDraft}
+              onChange={setTodaySkincareDraft}
+              hasSavedRecord={Object.prototype.hasOwnProperty.call(todaySkincareRecords, selectedDate)}
+              localDataLoaded={localDataLoaded}
+              onStartProduct={openUnusedProducts}
+            />
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>今日のメモ</h2>
               <textarea value={memo} onChange={(event) => setMemo(event.target.value)} rows={5} placeholder={records[(() => { const d = new Date(`${selectedDate}T12:00:00`); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })()]?.tomorrowTodo || "今日あったこと、思ったことなど…"} className={`${inputClass} resize-y leading-6 placeholder:text-[#D8BDAA]`} />
             </section>
-            <section className={sectionClass}>
-              <h2 className={sectionTitleClass}>明日やりたいこと</h2>
+            <section className={dailySectionClass}>
+              <h2 className={dailySectionTitleClass}>明日やりたいこと</h2>
               <textarea value={tomorrowTodo} onChange={(event) => setTomorrowTodo(event.target.value)} rows={3} placeholder="明日やりたいことを書いてね…" className={`${inputClass} resize-y leading-6 !border-[#F2D6C2] !bg-[#FFF3E9]`} />
             </section>
-            <button type="button" onClick={saveDailyRecord} className="w-full rounded-2xl bg-[#E9A16F] px-5 py-4 text-base font-semibold text-white shadow-lg shadow-[#F2D4BE]/70 transition hover:bg-[#DF925D]">{savedMessage || "今日の記録を保存"}</button>
+            <button type="button" onClick={saveDailyRecord} className="w-full rounded-2xl bg-[#E9A16F] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#F2D4BE]/70 transition hover:bg-[#DF925D]">{savedMessage || "今日の記録を保存"}</button>
 
           </div>
         )}

@@ -35,10 +35,10 @@ export default function SkinDailyRecord({
   onChange: (next: SkinState) => void
 }) {
   return (
-    <section className="rounded-2xl border border-[#DDEBF0] bg-[#F8FCFD] p-4 shadow-sm">
-      <h2 className="mb-4 text-base font-bold text-[#5D727A]">肌記録</h2>
+    <section className="rounded-xl border border-[#DDEBF0] bg-[#F8FCFD] p-3 shadow-sm">
+      <h2 className="mb-3 text-sm font-bold text-[#5D727A]">肌記録</h2>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {fields.map(([key, label]) => (
           <div key={key} className="flex items-center justify-between gap-3">
             <span className="text-sm font-semibold text-[#65777D]">{label}</span>
@@ -48,7 +48,7 @@ export default function SkinDailyRecord({
                   key={value}
                   type="button"
                   onClick={() => onChange({ ...state, [key]: value })}
-                  className={`h-9 w-11 rounded-lg border text-sm font-bold ${
+                  className={`h-8 w-10 rounded-lg border text-sm font-bold ${
                     state[key] === value
                       ? "border-[#A8C6D1] bg-[#DDEFF4] text-[#5D727A]"
                       : "border-[#DCE7EA] bg-white text-[#9AA8AD]"
@@ -62,15 +62,15 @@ export default function SkinDailyRecord({
         ))}
       </div>
 
-      <div className="mt-4">
-        <p className="mb-2 text-sm font-semibold text-[#65777D]">総合点</p>
-        <div className="grid grid-cols-5 gap-2">
+      <div className="mt-3">
+        <p className="mb-1.5 text-xs font-semibold text-[#65777D]">総合点</p>
+        <div className="grid grid-cols-5 gap-1.5">
           {[5, 4, 3, 2, 1].map((value) => (
             <button
               key={value}
               type="button"
               onClick={() => onChange({ ...state, overallScore: value })}
-              className={`rounded-lg border py-2 text-sm font-bold ${
+              className={`rounded-lg border py-1.5 text-xs font-bold ${
                 state.overallScore === value
                   ? "border-[#A8C6D1] bg-[#DDEFF4] text-[#5D727A]"
                   : "border-[#DCE7EA] bg-white text-[#9AA8AD]"
