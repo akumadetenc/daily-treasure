@@ -302,8 +302,8 @@ export function createClient() {
     auth: {
       async getUser() {
         await ensureSeeded()
-        let id = localStorage.getItem(USER_KEY)
-        if (!id) {
+        let id = localStorage.getItem(USER_KEY) ?? "local-user"
+        if (!localStorage.getItem(USER_KEY)) {
           const products = readRows("skincare_products")
           id = products[0]?.user_id ?? "local-user"
           localStorage.setItem(USER_KEY, id)
