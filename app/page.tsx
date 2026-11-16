@@ -231,17 +231,36 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requestedView = params.get("view");
-    if (requestedView === "calendar") setView("calendar");
-    if (requestedView === "graphs") setView("graphs");
-    if (requestedView === "treasure-list") setView("treasure-list");
-    if (requestedView === "sparkle") window.location.replace("/cosmetics");
+    const syncViewFromUrl = () => {
+      const requestedView = new URLSearchParams(window.location.search).get("view");
+      if (requestedView === "calendar") setView("calendar");
+      else if (requestedView === "graphs") setView("graphs");
+      else if (requestedView === "treasure-list") setView("treasure-list");
+      else if (requestedView === "sparkle") window.location.replace("/cosmetics");
+      else if (!requestedView) setView("daily");
+    };
+
+    const handleViewChange = (event: Event) => {
+      const nextView = (event as CustomEvent<string>).detail;
+      if (nextView === "calendar" || nextView === "graphs" || nextView === "treasure-list" || nextView === "daily") {
+        setView(nextView);
+      }
+    };
+
+    syncViewFromUrl();
+    window.addEventListener("popstate", syncViewFromUrl);
+    window.addEventListener("takarabako-view-change", handleViewChange);
+
     const currentDay = todayString();
     setToday(currentDay);
     setSelectedDate(currentDay);
     const now = new Date();
     setMonthDate(new Date(now.getFullYear(), now.getMonth(), 1));
+
+    return () => {
+      window.removeEventListener("popstate", syncViewFromUrl);
+      window.removeEventListener("takarabako-view-change", handleViewChange);
+    };
   }, []);
 
   useEffect(() => {

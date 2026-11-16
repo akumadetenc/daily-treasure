@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+import type { MouseEvent } from "react"
 
 const menus = [
   { href: "/?view=graphs", label: "グラフ", icon: "/skinicon/graph.svg", view: "graphs" },
@@ -19,19 +20,33 @@ function getViewFromLocation() {
 
 export default function BottomNav() {
   const pathname = usePathname()
-  // Hydration時はサーバーとクライアントで同じ初期値にする。
-  // URLのviewはマウント後に同期することでhydration mismatchを防ぐ。
-  const [view, setView] = useState("daily")
+  const [view, setView] = useState<string | null>(null)
 
   useEffect(() => {
-    const syncView = () => setView(getViewFromLocation())
+    const syncView = () => {
+      setView(new URLSearchParams(window.location.search).get("view") || "daily")
+    }
     syncView()
     window.addEventListener("popstate", syncView)
-    return () => window.removeEventListener("popstate", syncView)
+    window.addEventListener("takarabako-view-change", syncView)
+    return () => {
+      window.removeEventListener("popstate", syncView)
+      window.removeEventListener("takarabako-view-change", syncView)
+    }
   }, [pathname])
 
-  function handleMenuClick(menuView: string) {
-    setView(menuView)
+  function handleMenuClick(event: MouseEvent<HTMLAnchorElement>, menuView: string, href: string) {
+    // ルート内のメニューはNext.jsのページ遷移を使わず、
+    // 同じ画面のviewだけを即時切り替える。これで連続タップ時の
+    // ルート再評価や遷移待ちを避け、v50の画面構成を維持する。
+    if (pathname === "/" && href.startsWith("/?view=")) {
+      event.preventDefault()
+      const url = new URL(window.location.href)
+      url.searchParams.set("view", menuView)
+      window.history.pushState({}, "", url.toString())
+      setView(menuView)
+      window.dispatchEvent(new CustomEvent("takarabako-view-change", { detail: menuView }))
+    }
   }
 
   return (
@@ -47,9 +62,10 @@ export default function BottomNav() {
             <Link
               key={menu.label}
               href={menu.href}
+              prefetch={false}
               aria-label={menu.label}
               title={menu.label}
-              onClick={() => handleMenuClick(menu.view)}
+              onClick={(event) => handleMenuClick(event, menu.view, menu.href)}
               className="flex min-w-0 items-center justify-center rounded-xl p-2.5"
             >
               <img
