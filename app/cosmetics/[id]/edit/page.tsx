@@ -712,7 +712,7 @@ export default function EditProductPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#F7FAFA] pb-28">
+      <main className="h-[100dvh] min-h-0 overflow-y-auto overscroll-y-auto bg-[#F7FAFA] pb-28 [-webkit-overflow-scrolling:touch]">
         <div className="fixed inset-x-0 top-0 z-40 bg-[#F7FAFA]">
           <div className="mx-auto max-w-xl px-4">
             <header className="border-b border-[#DFE9EC] pb-1 pt-[calc(env(safe-area-inset-top)+4px)]">
@@ -735,7 +735,7 @@ export default function EditProductPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F7FAFA] pb-28">
+    <main className="h-[100dvh] min-h-0 overflow-y-auto overscroll-y-auto bg-[#F7FAFA] pb-28 [-webkit-overflow-scrolling:touch]">
       <div className="fixed inset-x-0 top-0 z-40 bg-[#F7FAFA]">
         <div className="mx-auto max-w-xl px-4">
           <header className="border-b border-[#DFE9EC] pb-1 pt-[calc(env(safe-area-inset-top)+4px)]">

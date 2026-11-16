@@ -1,5 +1,7 @@
 "use client";
 
+import BottomNav from "./components/BottomNav";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import SkinDailyRecord, { initialSkinState, type SkinState } from "./components/SkinDailyRecord";
 import TodaySkincare from "./components/TodaySkincare";
@@ -1103,15 +1105,7 @@ export default function Home() {
         )}
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-[#E8E8E8] bg-white px-2 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5">
-        <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1">
-          <button aria-label="グラフ" title="グラフ" onClick={() => setView("graphs")} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/skinicon/graph.svg" alt="" className={`h-6 w-6 object-contain ${view === "graphs" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="カレンダー" title="カレンダー" onClick={() => setView("calendar")} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/skinicon/calendar.svg" alt="" className={`h-6 w-6 object-contain ${view === "calendar" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="今日の記録" title="今日の記録" onClick={() => { setSelectedDate(today); setView("daily"); }} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/icons/daily-add.svg" alt="" className={`h-6 w-6 object-contain ${view === "daily" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="宝物一覧" title="宝物一覧" onClick={() => { setSelectedDate(today); setTreasureDate(today); setEditingTreasureId(null); setView("treasures"); }} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/icons/diamond.svg" alt="" className={`h-6 w-6 object-contain text-[#55585A] ${view === "treasures" || view === "treasure-list" ? "opacity-100" : "opacity-40"}`} /></button>
-          <button aria-label="キラキラ" title="キラキラ" onClick={() => { window.location.href = "/cosmetics"; }} className="flex min-w-0 items-center justify-center rounded-xl p-2.5"><img src="/skinicon/cosmetics.svg" alt="" className={`h-6 w-6 object-contain ${view === "sparkle" ? "opacity-100" : "opacity-40"}`} /></button>
-        </div>
-      </nav>
+      <BottomNav />
 
       {categoryEditorOpen && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#55585A]/30 p-3 sm:items-center" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoryEditorOpen(false); }}>
