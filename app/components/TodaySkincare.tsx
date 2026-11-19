@@ -409,8 +409,8 @@ export default function TodaySkincare({
       </button>
 
       {finishProduct && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/30 px-4 pb-4 sm:items-center">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-xl">
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/30 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:items-center sm:pb-4">
+          <div className="max-h-[calc(100dvh-6rem-env(safe-area-inset-bottom))] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-xl sm:max-h-[90vh]">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-[#55585A]">使い切り記録</h2>
               <button
