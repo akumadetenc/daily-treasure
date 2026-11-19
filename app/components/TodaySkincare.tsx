@@ -28,12 +28,20 @@ type RepeatStatus = "リピあり" | "あるかも" | "なし"
 export default function TodaySkincare({
   selected,
   onChange,
+  memoSelected,
+  onMemoChange,
+  memoText,
+  onMemoTextChange,
   hasSavedRecord,
   localDataLoaded,
   onStartProduct,
 }: {
   selected: string[]
   onChange: (next: string[]) => void
+  memoSelected: string[]
+  onMemoChange: (next: string[]) => void
+  memoText: string
+  onMemoTextChange: (next: string) => void
   hasSavedRecord: boolean
   localDataLoaded: boolean
   onStartProduct: () => void
@@ -70,9 +78,7 @@ export default function TodaySkincare({
         .order("name", { ascending: true }),
     ])
 
-    const loadedProducts = ((productResult.data || []) as Product[]).filter(
-      (product) => product.status === "使用中"
-    )
+    const loadedProducts = (productResult.data || []) as Product[]
     const loadedCategories = (categoryResult.data || []) as Category[]
 
     setProducts(loadedProducts)
@@ -193,6 +199,12 @@ export default function TodaySkincare({
     )
   }
 
+  const activeProducts = useMemo(() => products.filter((product) => product.status === "使用中"), [products])
+  const memoProducts = useMemo(() => {
+    const memoCategoryIds = new Set(categories.filter((category) => category.name === "メモ").map((category) => category.id))
+    return products.filter((product) => memoCategoryIds.has(product.category_id))
+  }, [products, categories])
+
   const productsByCategory = useMemo(() => {
     const grouped = new Map<string, Product[]>()
 
@@ -206,7 +218,7 @@ export default function TodaySkincare({
   }, [products])
 
   function getCategorySections(timeOfDay: TimeOfDay) {
-    const filteredProducts = products.filter((product) =>
+    const filteredProducts = activeProducts.filter((product) =>
       timeOfDay === "朝" ? product.use_morning : product.use_night
     )
 
@@ -255,12 +267,12 @@ export default function TodaySkincare({
 
   const morningSections = useMemo(
     () => getCategorySections("朝"),
-    [categories, products, productsByCategory]
+    [categories, activeProducts, productsByCategory]
   )
 
   const nightSections = useMemo(
     () => getCategorySections("夜"),
-    [categories, products, productsByCategory]
+    [categories, activeProducts, productsByCategory]
   )
 
   function renderTimeSection(
@@ -374,6 +386,19 @@ export default function TodaySkincare({
           使用中の商品がありません。
         </p>
       )}
+
+      <div className="mt-5 border-t border-[#DDEBF0] pt-4">
+        <div className="mb-2">
+          <h2 className="text-sm font-bold text-[#5D727A]">メモ</h2>
+        </div>
+        <textarea
+          value={memoText}
+          onChange={(event) => onMemoTextChange(event.target.value)}
+          rows={2}
+          placeholder="メモを入力"
+          className="w-full resize-none rounded-xl border border-[#DDEBF0] bg-white px-3 py-2.5 text-sm leading-5 text-[#55585A] outline-none placeholder:text-[#AAB3B6] focus:border-[#A8C6D1]"
+        />
+      </div>
 
       <button
         type="button"

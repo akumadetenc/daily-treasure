@@ -61,6 +61,11 @@ type UsageHistory = {
   created_at: string
 }
 
+type DailyMemo = {
+  date: string
+  text: string
+}
+
 const statusFilters: Array<"すべて" | ProductStatus> = [
   "すべて",
   "未使用",
@@ -88,6 +93,8 @@ export default function CosmeticsPage() {
 
   const [loading, setLoading] = useState(true)
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({})
+  const [dailyMemos, setDailyMemos] = useState<DailyMemo[]>([])
+  const [memoCategoryCollapsed, setMemoCategoryCollapsed] = useState(true)
 
   const [startProduct, setStartProduct] = useState<Product | null>(null)
   const [startMorning, setStartMorning] = useState(false)
@@ -125,6 +132,21 @@ export default function CosmeticsPage() {
     if (!user) {
       window.location.href = "/login"
       return
+    }
+
+    try {
+      const rawRecords = localStorage.getItem("daily-treasure-records-v1")
+      const parsedRecords = rawRecords ? JSON.parse(rawRecords) : {}
+      const memoList = Object.entries(parsedRecords || {})
+        .map(([date, value]) => ({
+          date,
+          text: typeof value === "object" && value !== null && typeof (value as { todaySkincareMemo?: unknown }).todaySkincareMemo === "string" ? (value as { todaySkincareMemo: string }).todaySkincareMemo.trim() : "",
+        }))
+        .filter((item): item is DailyMemo => Boolean(item.text))
+        .sort((a, b) => b.date.localeCompare(a.date))
+      setDailyMemos(memoList)
+    } catch {
+      setDailyMemos([])
     }
 
     const [
@@ -368,7 +390,11 @@ export default function CosmeticsPage() {
       groups.get(product.category_id)!.products.push(product)
     })
 
-    return Array.from(groups.values())
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.categoryName === "メモ" && b.categoryName !== "メモ") return -1
+      if (a.categoryName !== "メモ" && b.categoryName === "メモ") return 1
+      return a.categoryName.localeCompare(b.categoryName, "ja", { sensitivity: "base" })
+    })
   }, [filteredProducts, categoryMap])
 
   function openStart(product: Product) {
@@ -662,6 +688,12 @@ export default function CosmeticsPage() {
     return "―"
   }
 
+  function formatMemoDate(date: string) {
+    const [year, month, day] = date.split("-")
+    if (!year || !month || !day) return date
+    return `${year}/${month}/${day}`
+  }
+
   if (loading) {
     return (
       <main className="h-[100dvh] overflow-y-auto overscroll-y-auto bg-[#F7FAFA] pb-28 [-webkit-overflow-scrolling:touch]">
@@ -749,6 +781,36 @@ export default function CosmeticsPage() {
           })}
         </div>
         </div>
+
+        {/* メモ */}
+        <section className="mt-4">
+          <button
+            type="button"
+            onClick={() => setMemoCategoryCollapsed((current) => !current)}
+            className="mb-3 flex w-full items-center justify-between rounded-xl px-1 py-1 text-left text-sm font-bold text-gray-700"
+            aria-expanded={!memoCategoryCollapsed}
+          >
+            <span>メモ <span className="font-normal text-gray-400">{dailyMemos.length}</span></span>
+            <span className="text-gray-400">{memoCategoryCollapsed ? "＋" : "−"}</span>
+          </button>
+
+          {!memoCategoryCollapsed && (
+            <div className="space-y-2">
+              {dailyMemos.length === 0 ? (
+                <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <p className="text-sm text-gray-400">メモがありません。</p>
+                </div>
+              ) : (
+                dailyMemos.map((item) => (
+                  <article key={item.date} className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+                    <p className="mb-1 text-xs text-gray-400">{formatMemoDate(item.date)}</p>
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-gray-700">{item.text}</p>
+                  </article>
+                ))
+              )}
+            </div>
+          )}
+        </section>
 
         {/* 商品 */}
         <div className="mt-4 space-y-6">

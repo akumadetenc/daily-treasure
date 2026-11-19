@@ -66,12 +66,15 @@ export default function SkincarePage() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [returnToDaily, setReturnToDaily] = useState(false)
 
   useEffect(() => {
-    loadData()
+    const params = new URLSearchParams(window.location.search)
+    setReturnToDaily(params.get("return") === "daily")
+    loadData(params.get("category") || "")
   }, [])
 
-  async function loadData() {
+  async function loadData(preferredCategoryName = "") {
     setLoading(true)
     setMessage("")
 
@@ -147,7 +150,31 @@ export default function SkincarePage() {
         "カテゴリーの読み込みに失敗しました。"
       )
     } else {
-      setCategories(japaneseNameSort((categoryResult.data ?? []) as Category[]))
+      let loadedCategories = (categoryResult.data ?? []) as Category[]
+      let memoCategory = loadedCategories.find((category) => category.name === "メモ")
+
+      if (!memoCategory) {
+        const maxSortOrder = loadedCategories.length > 0 ? Math.max(...loadedCategories.map((category) => category.sort_order)) : -1
+        const { data, error } = await supabase
+          .from("skincare_categories")
+          .insert({ user_id: user.id, name: "メモ", sort_order: maxSortOrder + 1 })
+          .select("id, name, sort_order")
+          .single()
+        if (!error && data) {
+          memoCategory = data as Category
+          loadedCategories = [...loadedCategories, memoCategory]
+        }
+      }
+
+      setCategories([
+        ...loadedCategories.filter((category) => category.name === "メモ"),
+        ...japaneseNameSort(loadedCategories.filter((category) => category.name !== "メモ")),
+      ])
+
+      if (preferredCategoryName) {
+        const preferred = loadedCategories.find((category) => category.name === preferredCategoryName)
+        if (preferred) setCategoryId(preferred.id)
+      }
     }
 
     if (ingredientResult.error) {
@@ -633,6 +660,12 @@ export default function SkincarePage() {
     )
 
     setSaving(false)
+
+    if (returnToDaily) {
+      setTimeout(() => {
+        window.location.href = "/?view=daily"
+      }, 600)
+    }
   }
 
   if (loading) {
@@ -664,9 +697,16 @@ export default function SkincarePage() {
       <div className="fixed inset-x-0 top-0 z-40 bg-[#F7FAFA]">
         <div className="mx-auto max-w-xl px-4">
           <header className="border-b border-[#DFE9EC] pb-1 pt-[calc(env(safe-area-inset-top)+4px)]">
-            <h1 className="text-2xl font-bold text-gray-800">
-              商品登録
-            </h1>
+            <div className="flex items-center justify-between gap-3">
+              {returnToDaily ? (
+                <button type="button" onClick={() => { window.location.href = "/?view=daily" }} className="shrink-0 text-xs font-medium text-[#647F89]">← 今日の記録に戻る</button>
+              ) : (
+                <span />
+              )}
+              <h1 className="text-2xl font-bold text-gray-800">
+                商品登録
+              </h1>
+            </div>
           </header>
         </div>
       </div>

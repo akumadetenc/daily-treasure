@@ -27,6 +27,7 @@ type DailyRecord = {
   exercise?: string;
   periodStatus?: string;
   updatedAt?: string;
+  todaySkincareMemo?: string;
 };
 type TreasureComment = { id: string; text: string; createdAt: string };
 type Treasure = { id: string; date: string; url: string; title: string; note: string; comments?: TreasureComment[]; thumbnail?: string; siteName?: string; category?: string; createdAt: string };
@@ -51,6 +52,7 @@ const TREASURE_CATEGORIES_KEY = "daily-treasure-treasure-categories-v1";
 const CATEGORY_RULES_KEY = "daily-treasure-category-rules-v1";
 const SKIN_DAILY_KEY = "takarabako-skin-daily-v1";
 const TODAY_SKINCARE_KEY = "takarabako-today-skincare-v1";
+const TODAY_MEMO_PRODUCTS_KEY = "takarabako-today-memo-products-v1";
 const DAILY_DRAFT_KEY = "takarabako-daily-draft-v1";
 const DEFAULT_TREASURE_CATEGORIES = ["動画", "漫画", "Webページ", "商品", "食べ物", "旅行", "写真", "メモ", "その他"];
 const DEFAULT_CATEGORY_RULES: Record<string, string> = {
@@ -146,8 +148,11 @@ export default function Home() {
   const [expandedExpenseCategory, setExpandedExpenseCategory] = useState<string | null>(null);
   const [skinDailyRecords, setSkinDailyRecords] = useState<Record<string, SkinDailyState>>({});
   const [todaySkincareRecords, setTodaySkincareRecords] = useState<Record<string, string[]>>({});
+  const [todayMemoProductRecords, setTodayMemoProductRecords] = useState<Record<string, string[]>>({});
   const [skinDailyDraft, setSkinDailyDraft] = useState<SkinState>(initialSkinState);
   const [todaySkincareDraft, setTodaySkincareDraft] = useState<string[]>([]);
+  const [todayMemoProductDraft, setTodayMemoProductDraft] = useState<string[]>([]);
+  const [todaySkincareMemo, setTodaySkincareMemo] = useState("");
   const [localDataLoaded, setLocalDataLoaded] = useState(false);
   const initializedDailyDateRef = useRef<string | null>(null);
   const [treatmentCalendarRecords, setTreatmentCalendarRecords] = useState<TreatmentCalendarRecord[]>([]);
@@ -314,6 +319,10 @@ export default function Home() {
       const skincareRaw = localStorage.getItem(TODAY_SKINCARE_KEY);
       const skincareParsed = skincareRaw ? JSON.parse(skincareRaw) : {};
       if (skincareParsed && typeof skincareParsed === "object") setTodaySkincareRecords(skincareParsed);
+
+      const memoProductsRaw = localStorage.getItem(TODAY_MEMO_PRODUCTS_KEY);
+      const memoProductsParsed = memoProductsRaw ? JSON.parse(memoProductsRaw) : {};
+      if (memoProductsParsed && typeof memoProductsParsed === "object") setTodayMemoProductRecords(memoProductsParsed);
     } catch {
       // 肌記録・スキンケア記録を読めない場合もカレンダーは利用できます。
     }
@@ -480,6 +489,13 @@ export default function Home() {
     } else {
       setTodaySkincareDraft(todaySkincareRecords[selectedDate] || []);
     }
+
+    if (draft?.todayMemoProductDraft) {
+      setTodayMemoProductDraft(draft.todayMemoProductDraft);
+    } else {
+      setTodayMemoProductDraft(todayMemoProductRecords[selectedDate] || []);
+    }
+    setTodaySkincareMemo(draft?.todaySkincareMemo ?? record?.todaySkincareMemo ?? "");
   }, [selectedDate, localDataLoaded]);
 
   const totalExpense = useMemo(
@@ -501,16 +517,19 @@ export default function Home() {
     setMonthDate(new Date(monthYear, month + delta, 1));
   }
   function saveDailyRecord() {
-    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, tomorrowTodo, bowelCount: Number(bowelCount), bowelSoftness, exercise, periodStatus, updatedAt: new Date().toISOString() } };
+    const next = { ...records, [selectedDate]: { mood, activity, condition, breakfast, lunch, dinner, snack, expenses, memo, todaySkincareMemo, tomorrowTodo, bowelCount: Number(bowelCount), bowelSoftness, exercise, periodStatus, updatedAt: new Date().toISOString() } };
     const nextSkinDaily = { ...skinDailyRecords, [selectedDate]: skinDailyDraft };
     const nextTodaySkincare = { ...todaySkincareRecords, [selectedDate]: todaySkincareDraft };
+    const nextTodayMemoProducts = { ...todayMemoProductRecords, [selectedDate]: todayMemoProductDraft };
     setRecords(next);
     setSkinDailyRecords(nextSkinDaily);
     setTodaySkincareRecords(nextTodaySkincare);
+    setTodayMemoProductRecords(nextTodayMemoProducts);
     localStorage.setItem(RECORDS_KEY, JSON.stringify(next));
     localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
     localStorage.setItem(SKIN_DAILY_KEY, JSON.stringify(nextSkinDaily));
     localStorage.setItem(TODAY_SKINCARE_KEY, JSON.stringify(nextTodaySkincare));
+    localStorage.setItem(TODAY_MEMO_PRODUCTS_KEY, JSON.stringify(nextTodayMemoProducts));
     setSavedMessage("保存しました");
     window.setTimeout(() => setSavedMessage(""), 2400);
   }
@@ -534,6 +553,8 @@ export default function Home() {
       periodStatus,
       skinDailyDraft,
       todaySkincareDraft,
+      todayMemoProductDraft,
+      todaySkincareMemo,
     };
     localStorage.setItem(DAILY_DRAFT_KEY, JSON.stringify(draft));
     window.location.href = "/cosmetics?status=未使用&return=daily";
@@ -705,7 +726,6 @@ export default function Home() {
 
   const selectedSkinDaily = getSkinDailyRecord(selectedDate);
   const selectedSkincareNames = getSkincareNames(selectedDate);
-
   const selectedTreatmentNames = getTreatmentNames(selectedDate);
 
   const selectedTreasures = treasures.filter((item) => item.date === selectedDate);
@@ -1012,6 +1032,10 @@ export default function Home() {
             <TodaySkincare
               selected={todaySkincareDraft}
               onChange={setTodaySkincareDraft}
+              memoSelected={todayMemoProductDraft}
+              onMemoChange={setTodayMemoProductDraft}
+              memoText={todaySkincareMemo}
+              onMemoTextChange={setTodaySkincareMemo}
               hasSavedRecord={Object.prototype.hasOwnProperty.call(todaySkincareRecords, selectedDate)}
               localDataLoaded={localDataLoaded}
               onStartProduct={openUnusedProducts}
