@@ -811,7 +811,7 @@ export default function Home() {
         </header>
       )}
       <div
-        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 pb-24 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" || view === "sparkle" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
+        className={`absolute inset-x-0 bottom-0 overflow-y-auto overscroll-y-none px-3 ${view === "daily" ? "pb-[calc(8rem+env(safe-area-inset-bottom))]" : "pb-24"} [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-24 ${view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" || view === "sparkle" ? "pt-2" : "pt-[max(env(safe-area-inset-top),8px)] sm:pt-8"}`}
         style={{ top: today && selectedDate && (view === "calendar" || view === "daily" || view === "treasures" || view === "graphs" || view === "treasure-list" || view === "sparkle") ? (view === "graphs" ? "calc(max(env(safe-area-inset-top), 8px) + 132px)" : (view === "treasure-list" || view === "treasures" ? "calc(max(env(safe-area-inset-top), 8px) + 80px)" : "calc(max(env(safe-area-inset-top), 8px) + 58px)")) : "0px" }}
       >
       <div className="mx-auto max-w-2xl">
