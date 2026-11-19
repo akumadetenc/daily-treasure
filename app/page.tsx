@@ -446,7 +446,7 @@ export default function Home() {
     if (initializedDailyDateRef.current === selectedDate) return;
     initializedDailyDateRef.current = selectedDate;
 
-    let draft: { selectedDate?: string; mood?: string; activity?: string; condition?: string; breakfast?: string; lunch?: string; dinner?: string; snack?: string; expenses?: Expense[]; memo?: string; tomorrowTodo?: string; bowelCount?: string; bowelSoftness?: string; exercise?: string; periodStatus?: string; skinDailyDraft?: SkinState; todaySkincareDraft?: string[] } | null = null;
+    let draft: { selectedDate?: string; mood?: string; activity?: string; condition?: string; breakfast?: string; lunch?: string; dinner?: string; snack?: string; expenses?: Expense[]; memo?: string; tomorrowTodo?: string; bowelCount?: string; bowelSoftness?: string; exercise?: string; periodStatus?: string; skinDailyDraft?: SkinState; todaySkincareDraft?: string[]; todayMemoProductDraft?: string[]; todaySkincareMemo?: string } | null = null;
 
     try {
       const rawDraft = localStorage.getItem(DAILY_DRAFT_KEY);
